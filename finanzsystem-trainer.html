@@ -1117,17 +1117,25 @@ async function loadModel() {
 
 async function chat(messages, opts = {}) {
   if (!engine) throw new Error("Modell nicht geladen.");
-  // Hinweis: response_format wird BEWUSST nicht durchgereicht.
-  // Aktuelle WebLLM-Versionen werfen "Cannot pass non-string to std::string"
-  // im GrammarCompiler, wenn { type: "json_object" } ohne Schema gesetzt wird.
-  // Stattdessen verlangt der Prompt explizit JSON-Output, parseJsonLoose()
-  // extrahiert das robust aus dem freien Text.
-  const res = await engine.chat.completions.create({
+  // response_format wird BEWUSST nicht durchgereicht — WebLLm-Bug bei json_object ohne Schema.
+  // Stream-Modus: per Default an, weil dadurch die UI live mitschreiben kann
+  // und die gefuehlte Latenz drastisch sinkt. opts.onChunk(buffer, delta) wird pro
+  // Token aufgerufen. Ohne onChunk verhaelt sich chat() wie vorher (sammelt alles).
+  const stream = await engine.chat.completions.create({
     messages,
     temperature: opts.temperature ?? 0.4,
     max_tokens: opts.max_tokens ?? 512,
+    stream: true,
   });
-  return res.choices[0].message.content;
+  let buffer = "";
+  for await (const chunk of stream) {
+    const delta = chunk.choices?.[0]?.delta?.content || "";
+    if (delta) {
+      buffer += delta;
+      if (opts.onChunk) opts.onChunk(buffer, delta);
+    }
+  }
+  return buffer;
 }
 
 function ensureModel() {
@@ -1207,7 +1215,15 @@ Formuliere genau EINE Frage in deutscher Sprache, die einen Schüler zur freien 
     ];
 
     try {
-      const q = await chat(messages, { temperature: 0.8, max_tokens: 200 });
+      $("questionContainer").innerHTML = `<div class="question-box" id="questionStream"></div>`;
+      const q = await chat(messages, {
+        temperature: 0.8,
+        max_tokens: 200,
+        onChunk: (buf) => {
+          const el = $("questionStream");
+          if (el) el.textContent = buf;
+        }
+      });
       currentQuestion = { mode: "generated", text: q.trim().replace(/^["„"']+|["""']+$/g, "") };
       showQuestion();
     } catch (e) {
@@ -1247,7 +1263,7 @@ Erstelle eine Multiple-Choice-Frage mit genau 4 Antwortmöglichkeiten, davon GEN
   ];
 
   try {
-    const raw = await chat(messages, { temperature: 0.6, max_tokens: 600 });
+    const raw = await chat(messages, { temperature: 0.6, max_tokens: 420 });
     const data = parseJsonLoose(raw);
     if (!data || !Array.isArray(data.antworten) || data.antworten.length !== 4) throw new Error("Ungültiges Format vom Modell.");
     currentQuestion = { mode: "mc", text: data.frage, ...data };
@@ -1296,83 +1312,43 @@ async function submitAnswer() {
   if (!ans) { return; }
 
   const lz = currentTopic;
-  $("feedbackContainer").innerHTML = `<div class="empty-hint loading-line"><span class="spinner"></span>KI prüft Ihre Antwort…</div>`;
+  $("feedbackContainer").innerHTML = `<div class="empty-hint loading-line"><span class="spinner"></span>KI prüft Ihre Antwort… <span id="evalProgress" style="color:var(--text-soft);font-size:12px;"></span></div>`;
   setBusy(true);
 
   const messages = [
     { role: "system", content:
-`Du bist eine strenge, aber faire Wirtschaftslehrerin in der Schweiz. Du bewertest die Antwort eines Schülers auf inhaltliche Korrektheit UND fachliche Präzision, NICHT auf Wortlaut. Gib eine ehrliche, lehrreiche Rückmeldung in deutscher Sprache (kein "ß").
+`Du bist eine strenge, faire Schweizer Wirtschaftslehrerin. Bewerte Schüler-Antworten auf inhaltliche Korrektheit + fachliche Präzision (nicht Wortlaut). Sprache: Deutsch, kein "ß".
 
-Antworte AUSSCHLIESSLICH mit gültigem JSON in genau diesem Format (keine Erklärung davor oder danach):
-{
-  "bewertung": "richtig" | "teilweise" | "falsch",
-  "begruendung": "2-4 Sätze: konkret, lehrreich.",
-  "fehlende_punkte": ["Punkt 1", "Punkt 2"],
-  "musterloesung": "Eine ideale, knappe Musterantwort in 2-4 Sätzen.",
-  "ist_zu_vage": true | false
-}
+Antworte NUR mit gültigem JSON, nichts davor/danach:
+{"bewertung":"richtig"|"teilweise"|"falsch","begruendung":"2-3 Sätze, konkret, lehrreich","fehlende_punkte":["..."],"musterloesung":"2-3 Sätze mit Fachbegriffen","ist_zu_vage":true|false}
 
-Bewertungs-Kriterien (streng anwenden):
-- "richtig": NUR DANN, wenn (a) die Antwort die zentralen Fachbegriffe verwendet ODER ihre Bedeutung präzise umschreibt, UND (b) keinen Punkt der Unterziele klar verfehlt, UND (c) inhaltlich keine Fehler enthält.
-- "teilweise": Die Antwort ist sinngemäss in die richtige Richtung, aber es fehlen wichtige Punkte ODER sie ist zu vage formuliert ODER ihr fehlt die Wirkungskette.
-- "falsch": Die Antwort enthält klar falsche Aussagen oder verfehlt das Lernziel.
+Regeln:
+- richtig: Fachbegriffe (oder präzise Umschreibung) + alle Unterziele abgedeckt + keine Fehler.
+- teilweise: Richtung stimmt, aber Fachbegriffe/Wirkungskette fehlen oder Punkte ausgelassen. ist_zu_vage=true wenn vage ("Geld wird teurer", "macht was mit Zinsen") statt präzise ("Refinanzierungskosten steigen, Kreditzinsen rauf, Geldmenge sinkt").
+- falsch: Klar falsche Aussagen oder Lernziel verfehlt.
 
-Vagheits-Heuristik (wichtig!):
-"Zu vage" ist eine Antwort, die sinngemäss in die richtige Richtung geht, ABER ohne Fachbegriffe oder ohne nachvollziehbare Wirkungskette bleibt.
-- Beispiele für ZU VAGE: "Geld wird teurer", "die SNB macht etwas mit Zinsen", "Bitcoin ist riskant", "Banken verleihen Geld".
-- Beispiele für PRÄZISE: "Die SNB erhöht den Leitzins, dadurch steigen die Refinanzierungskosten der Geschäftsbanken, Kredite werden teurer, die Geldmenge sinkt und die Inflation wird gebremst."
-Wenn die Antwort sinngemäss richtig ABER ohne Fachbegriffe ODER ohne Wirkungskette ist, MUSST du bewertung = "teilweise" und ist_zu_vage = true setzen.
-
-Stichworte als Indikatoren (nicht als Pflicht):
-Die ERWARTETEN SCHLÜSSELBEGRIFFE sind Indikatoren für Präzision, KEINE wörtliche Pflicht. Eine Antwort, die KEINEN der Schlüsselbegriffe verwendet UND ihre Bedeutung auch nicht inhaltlich umschreibt, ist mit hoher Wahrscheinlichkeit "teilweise" mit ist_zu_vage = true.
-
-Begründungs-Stil (lehrreich, nicht generisch):
-In "begruendung" (2-4 Sätze) erkläre konkret, WAS gut ist UND WO genau die Lücke ist. Vermeide generische Floskeln wie "gut formuliert", "nicht ganz richtig" oder "okay". Nenne den fehlenden Fachbegriff explizit und sage, WARUM er hier wichtig ist.` },
+In begruendung: konkret nennen WAS fehlt + WARUM. Keine Floskeln wie "gut formuliert".` },
     { role: "user", content:
 `LERNZIEL: ${lz.titel}
-UNTERZIELE DES LERNZIELS:
-${lz.unterziele.map(u => "- " + u).join("\n")}
-ERWARTETE SCHLÜSSELBEGRIFFE (Indikatoren): ${lz.stichworte.join(", ")}
+UNTERZIELE: ${lz.unterziele.join(" / ")}
+SCHLÜSSELBEGRIFFE: ${lz.stichworte.join(", ")}
 
-GESTELLTE FRAGE:
-${currentQuestion.text}
+FRAGE: ${currentQuestion.text}
 
-ANTWORT DES SCHÜLERS:
-${ans}
+SCHÜLER-ANTWORT: ${ans}
 
---- ORIENTIERUNGS-BEISPIELE (Stil der Bewertung) ---
-
-BEISPIEL 1 — zu vage, daher "teilweise":
-Lehrziel-Kontext: Leitzins der SNB.
-Antwort: "Wenn der Leitzins steigt, wird das Geld teurer."
-Bewertung:
-{
-  "bewertung": "teilweise",
-  "ist_zu_vage": true,
-  "begruendung": "Die Richtung stimmt, aber die zentrale Mechanik fehlt: Es bleibt unklar, WIE der Leitzins wirkt — über die Refinanzierungskosten der Geschäftsbanken, höhere Kreditzinsen, sinkende Kreditnachfrage, abnehmende Geldmenge und damit gebremste Inflation. Werde präziser mit der Wirkungskette und nutze die Fachbegriffe.",
-  "fehlende_punkte": ["Refinanzierungskosten der Geschäftsbanken", "Wirkungskette zu Inflation", "Geldmenge"],
-  "musterloesung": "Erhöht die SNB den Leitzins, steigen die Refinanzierungskosten der Geschäftsbanken. Diese geben höhere Zinsen weiter, Kredite werden teurer und Sparen attraktiver. Die Geldmenge sinkt und damit die Inflation."
-}
-
-BEISPIEL 2 — präzise, daher "richtig":
-Lehrziel-Kontext: Leitzins der SNB.
-Antwort: "Erhöht die SNB den Leitzins, steigen die Refinanzierungskosten der Geschäftsbanken. Diese geben höhere Zinsen weiter, Kredite werden teurer und Sparen attraktiver. Die Geldmenge sinkt und damit die Inflation."
-Bewertung:
-{
-  "bewertung": "richtig",
-  "ist_zu_vage": false,
-  "begruendung": "Die Wirkungskette ist vollständig und in den richtigen Fachbegriffen ausgedrückt: Refinanzierung, Kreditzins, Geldmenge, Inflation. Die Kausalität ist nachvollziehbar.",
-  "fehlende_punkte": [],
-  "musterloesung": "Erhöht die SNB den Leitzins, steigen die Refinanzierungskosten der Geschäftsbanken. Diese geben höhere Zinsen weiter, Kredite werden teurer und Sparen attraktiver. Die Geldmenge sinkt und damit die Inflation."
-}
-
---- ENDE BEISPIELE ---
-
-Bewerte jetzt die ANTWORT DES SCHÜLERS oben nach den Kriterien — im selben Stil wie die Beispiele, aber bezogen auf das gegebene LERNZIEL. Antworte nur mit JSON.` }
+Bewerte. Nur JSON.` }
   ];
 
   try {
-    const raw = await chat(messages, { temperature: 0.2, max_tokens: 700 });
+    const raw = await chat(messages, {
+      temperature: 0.2,
+      max_tokens: 450,
+      onChunk: (buf) => {
+        const el = $("evalProgress");
+        if (el) el.textContent = `(${buf.length} Zeichen)`;
+      }
+    });
     const data = parseJsonLoose(raw);
     if (!data || !data.bewertung) throw new Error("Antwort des Modells konnte nicht interpretiert werden.");
     renderFeedback(data);
@@ -1411,8 +1387,18 @@ async function showHint() {
     { role: "user", content: `LERNZIEL: ${currentTopic.titel}\nFRAGE: ${currentQuestion.text}\nSCHLÜSSELBEGRIFFE die helfen könnten: ${currentTopic.stichworte.join(", ")}\n\nGib einen knappen Hinweis.` }
   ];
   try {
-    const hint = await chat(messages, { temperature: 0.5, max_tokens: 150 });
-    $("feedbackContainer").innerHTML = `<div class="feedback partial"><h4>💡 Hinweis</h4><p>${escapeHtml(hint.trim())}</p></div>`;
+    // Container vorbereiten und live mitschreiben
+    $("feedbackContainer").innerHTML = `<div class="feedback partial"><h4>💡 Hinweis</h4><p id="hintStream"></p></div>`;
+    const hint = await chat(messages, {
+      temperature: 0.5,
+      max_tokens: 150,
+      onChunk: (buf) => {
+        const el = $("hintStream");
+        if (el) el.textContent = buf;
+      }
+    });
+    const el = $("hintStream");
+    if (el) el.textContent = hint.trim();
   } catch (e) {
     $("feedbackContainer").innerHTML = `<div class="feedback bad"><p>${escapeHtml(e.message)}</p></div>`;
   } finally {
@@ -1429,8 +1415,17 @@ async function showSolution() {
     { role: "user", content: `LERNZIEL: ${currentTopic.titel}\nUNTERZIELE: ${currentTopic.unterziele.join("; ")}\nSCHLÜSSELBEGRIFFE: ${currentTopic.stichworte.join(", ")}\nFRAGE: ${currentQuestion.text}\n\nSchreibe die Musterantwort.` }
   ];
   try {
-    const sol = await chat(messages, { temperature: 0.3, max_tokens: 400 });
-    $("feedbackContainer").innerHTML = `<div class="feedback good"><h4>📘 Musterlösung</h4><p>${escapeHtml(sol.trim()).replace(/\n/g, "<br>")}</p></div>`;
+    $("feedbackContainer").innerHTML = `<div class="feedback good"><h4>📘 Musterlösung</h4><p id="solStream"></p></div>`;
+    const sol = await chat(messages, {
+      temperature: 0.3,
+      max_tokens: 280,
+      onChunk: (buf) => {
+        const el = $("solStream");
+        if (el) el.innerHTML = escapeHtml(buf).replace(/\n/g, "<br>");
+      }
+    });
+    const el = $("solStream");
+    if (el) el.innerHTML = escapeHtml(sol.trim()).replace(/\n/g, "<br>");
   } catch (e) {
     $("feedbackContainer").innerHTML = `<div class="feedback bad"><p>${escapeHtml(e.message)}</p></div>`;
   } finally {
@@ -1809,42 +1804,40 @@ async function submitQuizAnswer() {
   if (!ans) return;
 
   $("quizSubmitBtn").disabled = true;
-  $("quizFeedbackContainer").innerHTML = `<div class="empty-hint loading-line"><span class="spinner"></span>KI prueft Ihre Antwort…</div>`;
+  $("quizFeedbackContainer").innerHTML = `<div class="empty-hint loading-line"><span class="spinner"></span>KI prueft Ihre Antwort… <span id="quizEvalProgress" style="color:var(--text-soft);font-size:12px;"></span></div>`;
 
   const messages = [
     { role: "system", content:
-`Du bist eine strenge, aber faire Wirtschaftslehrerin in der Schweiz. Du bewertest die Antwort eines Schuelers auf inhaltliche Korrektheit UND fachliche Praezision, NICHT auf Wortlaut. Gib eine ehrliche, lehrreiche Rueckmeldung in deutscher Sprache (kein "ß").
+`Schweizer Wirtschaftslehrerin. Bewerte Schueler-Antwort auf inhaltliche Korrektheit (nicht Wortlaut). Deutsch, kein "ß".
 
-Antworte AUSSCHLIESSLICH mit gueltigem JSON in genau diesem Format (keine Erklaerung davor oder danach):
-{
-  "bewertung": "richtig" | "teilweise" | "falsch",
-  "begruendung": "2-4 Saetze: konkret, lehrreich.",
-  "fehlende_punkte": ["Punkt 1", "Punkt 2"],
-  "musterloesung": "Eine ideale, knappe Musterantwort in 2-4 Saetzen.",
-  "ist_zu_vage": true | false
-}
+Nur JSON, nichts davor/danach:
+{"bewertung":"richtig"|"teilweise"|"falsch","begruendung":"2-3 Saetze, konkret","fehlende_punkte":["..."],"musterloesung":"2-3 Saetze","ist_zu_vage":true|false}
 
-Bewertungs-Kriterien (streng anwenden):
-- "richtig": NUR DANN, wenn (a) die Antwort die zentralen Fachbegriffe verwendet ODER ihre Bedeutung praezise umschreibt, UND (b) keinen Punkt der Unterziele klar verfehlt, UND (c) inhaltlich keine Fehler enthaelt.
-- "teilweise": Die Antwort ist sinngemaess in die richtige Richtung, aber es fehlen wichtige Punkte ODER sie ist zu vage formuliert ODER ihr fehlt die Wirkungskette.
-- "falsch": Die Antwort enthaelt klar falsche Aussagen oder verfehlt das Lernziel.` },
+Regeln:
+- richtig: Fachbegriffe oder praezise Umschreibung + alle Unterziele + keine Fehler.
+- teilweise: Richtung stimmt aber Fachbegriffe/Wirkungskette fehlen. ist_zu_vage=true wenn vage statt praezise.
+- falsch: Falsche Aussagen oder Lernziel verfehlt.` },
     { role: "user", content:
 `LERNZIEL: ${lz.titel}
-UNTERZIELE DES LERNZIELS:
-${lz.unterziele.map(u => "- " + u).join("\n")}
-ERWARTETE SCHLUESSELBEGRIFFE (Indikatoren): ${lz.stichworte.join(", ")}
+UNTERZIELE: ${lz.unterziele.join(" / ")}
+SCHLUESSELBEGRIFFE: ${lz.stichworte.join(", ")}
 
-GESTELLTE FRAGE:
-${lz._frage}
+FRAGE: ${lz._frage}
 
-ANTWORT DES SCHUELERS:
-${ans}
+SCHUELER-ANTWORT: ${ans}
 
-Bewerte die Antwort. Antworte nur mit JSON.` }
+Bewerte. Nur JSON.` }
   ];
 
   try {
-    const raw = await chat(messages, { temperature: 0.2, max_tokens: 700 });
+    const raw = await chat(messages, {
+      temperature: 0.2,
+      max_tokens: 400,
+      onChunk: (buf) => {
+        const el = $("quizEvalProgress");
+        if (el) el.textContent = `(${buf.length} Zeichen)`;
+      }
+    });
     const data = parseJsonLoose(raw);
     if (!data || !data.bewertung) throw new Error("Antwort des Modells konnte nicht interpretiert werden.");
     const kind = data.bewertung === "richtig" ? "good" : data.bewertung === "teilweise" ? "partial" : "bad";
