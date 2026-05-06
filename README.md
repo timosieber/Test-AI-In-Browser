@@ -196,7 +196,7 @@ Der Lernfortschritt wird ausschliesslich im **`localStorage`** des Browsers gesp
 
 **Hinweis zur Cloud-Bereitstellung:** Wenn Sie den Trainer auf Netlify oder einem anderen Hoster bereitstellen, bleibt der Lernfortschritt standardmässig im `localStorage` des jeweiligen Browsers — beim Wechsel des Geräts oder Cache-Leeren geht er verloren. Beim Hosting auf Netlify mit aktivierten Blobs (siehe Online-Bereitstellung weiter unten) wird der Fortschritt zusätzlich pro Schüler-Name in der Netlify-Cloud gespeichert und ist auf jedem Gerät verfügbar.
 
-**Hinweis bei Netlify-Hosting mit Cloud-Sync:** Wenn die App auf Netlify mit aktiviertem Blob-Store läuft, werden der eingegebene Name (normalisiert) und die Counter-Statistik (richtig/teilweise/falsch pro Lehrziel) auf dem Netlify-Speicher abgelegt. Es werden keine Antworten, Fragen oder Eingaben über die KI gesendet. Schülern empfehlen, einen Vornamen oder Spitznamen statt vollständiger Namen einzugeben.
+**Hinweis bei Netlify-Hosting mit Cloud-Sync:** Wenn die App auf Netlify mit Cloud-Sync läuft, werden der eingegebene Name (normalisiert) und die Counter-Statistik (richtig/teilweise/falsch pro Lehrziel) auf dem Netlify-Speicher abgelegt. Es werden keine Antworten, Fragen oder Eingaben über die KI gesendet. Schülern empfehlen, einen Vornamen oder Spitznamen statt vollständiger Namen einzugeben.
 
 ---
 
@@ -241,7 +241,7 @@ Ja, im Modell-Wahlmenü. Jedes Modell wird separat heruntergeladen und gecached.
 
 ### „Wie nehme ich meinen Fortschritt auf ein anderes Gerät mit?"
 
-Wenn der Trainer **auf Netlify mit aktiviertem Blob-Store** läuft (siehe „Online-Bereitstellung"), erfolgt das automatisch: Den gleichen Namen auf dem anderen Gerät eingeben — der Fortschritt wird aus der Cloud geladen.
+Wenn der Trainer **auf Netlify mit Cloud-Sync** läuft (siehe „Online-Bereitstellung"), erfolgt das automatisch: Den gleichen Namen auf dem anderen Gerät eingeben — der Fortschritt wird aus der Cloud geladen.
 
 Lokal (`python3 start.py`) oder ohne Cloud-Sync gibt es derzeit keinen direkten Weg, den `localStorage` zu transferieren — am einfachsten ist dann der CSV-Export für den eigenen Überblick.
 
@@ -295,10 +295,16 @@ Im Ordner liegt eine vorkonfigurierte `netlify.toml` mit den richtigen Headern u
 
 Mit Netlify wird zusätzlich der Lernfortschritt jedes Schülers in **Netlify Blobs** (Key-Value-Speicher) abgelegt. Der Schüler gibt beim Start einmalig seinen Namen ein und kann auf jedem Gerät mit demselben Namen weiterarbeiten.
 
-1. **Im Netlify-Dashboard** des deployten Sites: Tab **„Blobs"** öffnen. Klicke „Enable Blobs" (kostenlos im Free-Tier, kein zusätzliches Setup nötig).
-2. Der Site-Code enthält bereits die Netlify Function unter `netlify/functions/progress.js` und ist auf den Pfad `/api/progress` gemappt.
-3. Beim Deploy installiert Netlify automatisch das Paket `@netlify/blobs` aus der `package.json`.
-4. Nach dem Deploy: Site öffnen, Name eingeben, loslegen. Der Fortschritt wird automatisch gespeichert.
+**Netlify Blobs ist auf allen Plans (auch Free) automatisch verfügbar — es gibt keinen „Enable"-Knopf.** Der Store wird beim ersten Function-Aufruf transparent angelegt.
+
+1. Repo auf Netlify deployen (Build command leer, Publish directory `.`).
+2. Im Netlify-Dashboard im Tab **„Functions"** prüfen, dass die Function `progress` aufgelistet ist (zeigt: Function wurde erkannt und deployed).
+3. Site-URL öffnen, Namen eingeben, eine Frage beantworten. In der Sidebar muss in der Zeile „Sync" der Status **„Synchronisiert HH:MM"** erscheinen (statt „offline").
+4. Erst danach erscheint im Tab **„Blobs"** der Store `finanzsystem-trainer` mit den Einträgen pro Schülername. (Solange noch nichts geschrieben wurde, zeigt der Tab nur eine Info-Seite — das ist normal.)
+
+> Falls in der Sidebar dauerhaft „Cloud nicht erreichbar" steht: prüfen, ob die Function unter Functions-Tab gelistet ist und unter Deploys keine Build-Errors stehen. Häufigste Ursache: `netlify.toml` nicht im Root oder `package.json` fehlt im Repo.
+
+**Free-Tier-Limits** (Stand 2026): ca. 100k Speicher-Operationen pro Monat und 5 GB Storage. Für eine Schulklasse mehr als ausreichend.
 
 **Datenschutz:** Im Blob-Store landet ausschliesslich der vom Schüler eingegebene Name (zu einem Schlüssel normalisiert) und die zugehörige Counter-Statistik. Keine Antworten, keine Fragen, keine personenbezogenen Daten ausser dem Namen. DSGVO-Hinweis im Klassenkontext: Den Schülern empfehlen, einen Vornamen oder Spitznamen statt Vor- und Nachname zu verwenden.
 
