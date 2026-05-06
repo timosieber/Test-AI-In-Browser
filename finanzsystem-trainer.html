@@ -1,0 +1,2179 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Finanzsystem-Trainer · Lokaler KI-Lerncoach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  /* ===== Light (Default) ===== */
+  :root {
+    --bg: #F8FAFC;
+    --panel: #FFFFFF;
+    --panel-2: #F1F5F9;
+    --border: #E2E8F0;
+    --border-strong: #CBD5E1;
+    --text: #0F172A;
+    --text-muted: #64748B;
+    --text-soft: #94A3B8;
+    /* Aliase fuer Bestand */
+    --muted: #64748B;
+    --fg: #0F172A;
+    --accent: #2563EB;
+    --accent-hover: #1D4ED8;
+    --accent-soft: #DBEAFE;
+    --accent-text: #FFFFFF;
+    --accent-2: #16A34A;
+    --good: #16A34A;
+    --good-soft: #DCFCE7;
+    --partial: #D97706;
+    --partial-soft: #FEF3C7;
+    --bad: #DC2626;
+    --bad-soft: #FEE2E2;
+    --warn: #B45309;
+    --warn-soft: #FEF3C7;
+    --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.04);
+    --shadow-md: 0 4px 12px -2px rgb(15 23 42 / 0.06), 0 2px 4px -2px rgb(15 23 42 / 0.04);
+    --shadow-lg: 0 12px 32px -8px rgb(15 23 42 / 0.08);
+    --overlay: rgba(15, 23, 42, 0.40);
+    --btn-text: #FFFFFF;
+    /* Type-Scale */
+    --text-xs: 12px;
+    --text-sm: 13px;
+    --text-base: 15px;
+    --text-lg: 17px;
+    --text-xl: 20px;
+    --text-2xl: 24px;
+  }
+  /* ===== Dark (Override) ===== */
+  [data-theme="dark"] {
+    --bg: #0B1120;
+    --panel: #111827;
+    --panel-2: #1E293B;
+    --border: #1F2937;
+    --border-strong: #374151;
+    --text: #F1F5F9;
+    --text-muted: #94A3B8;
+    --text-soft: #64748B;
+    --muted: #94A3B8;
+    --fg: #F1F5F9;
+    --accent: #60A5FA;
+    --accent-hover: #93C5FD;
+    --accent-soft: rgba(96, 165, 250, 0.15);
+    --accent-text: #0B1120;
+    --accent-2: #4ADE80;
+    --good: #4ADE80;
+    --good-soft: rgba(74, 222, 128, 0.15);
+    --partial: #FBBF24;
+    --partial-soft: rgba(251, 191, 36, 0.15);
+    --bad: #F87171;
+    --bad-soft: rgba(248, 113, 113, 0.15);
+    --warn: #FBBF24;
+    --warn-soft: rgba(251, 191, 36, 0.12);
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+    --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.4);
+    --shadow-lg: 0 12px 32px -8px rgb(0 0 0 / 0.5);
+    --overlay: rgba(0, 0, 0, 0.55);
+    --btn-text: #0B1120;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+    font-size: 15px;
+    font-feature-settings: "cv11", "ss01", "ss03";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  .app { display: grid; grid-template-columns: 320px 1fr; min-height: 100vh; }
+  aside {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 20px 18px;
+    overflow-y: auto;
+    max-height: 100vh;
+    position: sticky; top: 0;
+  }
+  main {
+    padding: 32px 40px;
+    max-width: 920px;
+    width: 100%;
+  }
+  h1 { font-size: 19px; line-height: 1.3; margin: 0 0 4px 0; font-weight: 600; letter-spacing: -0.01em; }
+  h2 {
+    font-size: 11px;
+    margin: 22px 0 10px 0;
+    color: var(--text-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+  h3 { font-size: 17px; margin: 0 0 10px 0; font-weight: 600; letter-spacing: -0.01em; }
+  .subtitle { color: var(--text-muted); font-size: 12px; margin-bottom: 16px; }
+  .topic-list { list-style: none; padding: 0; margin: 0; }
+  .topic-item {
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-bottom: 2px;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 2px solid transparent;
+    transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out;
+    color: var(--text);
+  }
+  .topic-item:hover { background: var(--panel-2); }
+  .topic-item.active {
+    background: var(--panel-2);
+    border-left-color: var(--accent);
+    color: var(--text);
+    font-weight: 500;
+  }
+  .topic-num { color: var(--text-soft); margin-right: 8px; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+  .progress-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border-strong); flex-shrink: 0;
+  }
+  .progress-dot.good { background: var(--good); }
+  .progress-dot.partial { background: var(--partial); }
+  .progress-dot.bad { background: var(--bad); }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 6px; font-weight: 500; }
+  select, textarea, input[type=text] {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 150ms ease-out, box-shadow 150ms ease-out, background-color 150ms ease-out;
+  }
+  select { min-width: 220px; }
+  button {
+    cursor: pointer;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: background-color 150ms ease-out, transform 100ms ease-out, box-shadow 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out, opacity 150ms ease-out;
+    min-height: 40px;
+    letter-spacing: -0.005em;
+  }
+  button:hover:not(:disabled) { background: var(--accent-hover); }
+  button:active:not(:disabled) { transform: scale(0.98); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    font-weight: 500;
+  }
+  button.ghost:hover:not(:disabled) { background: var(--panel-2); border-color: var(--border-strong); color: var(--text); }
+  /* MC-Antwort-Buttons */
+  button.ghost[data-mc] {
+    width: 100%;
+    text-align: left;
+    padding: 14px 16px;
+    border-radius: 12px;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+  button.ghost[data-mc]:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: var(--accent);
+    box-shadow: var(--shadow-sm);
+  }
+  /* Fokus-States */
+  button:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  input:focus-visible,
+  .topic-item:focus-visible,
+  details summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  select:focus-visible,
+  textarea:focus-visible,
+  input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+    border-color: var(--accent);
+  }
+  textarea {
+    width: 100%;
+    min-height: 120px;
+    resize: vertical;
+    font-family: inherit;
+    line-height: 1.6;
+  }
+  .question-box {
+    background: var(--accent-soft);
+    padding: 24px;
+    border-radius: 12px;
+    border-left: 3px solid var(--accent);
+    font-size: 18px;
+    line-height: 1.7;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: -0.005em;
+  }
+  [data-theme="dark"] .question-box {
+    background: var(--panel-2);
+  }
+  .feedback {
+    padding: 18px;
+    border-radius: 12px;
+    margin-top: 14px;
+    border-left: 4px solid var(--border-strong);
+    background: var(--panel-2);
+  }
+  .feedback.good { background: var(--good-soft); border-left-color: var(--good); }
+  .feedback.partial { background: var(--partial-soft); border-left-color: var(--partial); }
+  .feedback.bad { background: var(--bad-soft); border-left-color: var(--bad); }
+  .feedback h4 { margin: 0 0 8px 0; font-size: 14px; font-weight: 600; }
+  .feedback p { margin: 4px 0; font-size: 14px; line-height: 1.65; }
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 99px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .badge.good { background: var(--good); color: #FFFFFF; }
+  .badge.partial { background: var(--partial); color: #FFFFFF; }
+  .badge.bad { background: var(--bad); color: #FFFFFF; }
+  [data-theme="dark"] .badge.good,
+  [data-theme="dark"] .badge.partial,
+  [data-theme="dark"] .badge.bad { color: #0B1120; }
+
+  .status {
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 8px 10px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .status.ready { color: var(--good); }
+  .status.error { color: var(--bad); }
+
+  .stichworte {
+    font-size: 12px; color: var(--text-muted); margin-top: 10px;
+    font-style: italic;
+  }
+  details { margin-top: 12px; }
+  details summary { cursor: pointer; color: var(--text-muted); font-size: 13px; }
+  details[open] summary { margin-bottom: 8px; }
+
+  .hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; line-height: 1.55; }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 5px 0;
+    color: var(--text);
+  }
+  .stat-row span { font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+  .progress-bar { height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; margin: 8px 0; }
+  .progress-bar-fill { height: 100%; background: var(--accent); transition: width 0.3s ease-out; }
+
+  .browser-warn {
+    padding: 14px 16px;
+    background: var(--warn-soft);
+    border: 1px solid var(--partial);
+    border-left: 4px solid var(--warn);
+    border-radius: 10px;
+    color: var(--warn);
+    font-size: 13px;
+    margin-bottom: 16px;
+    line-height: 1.55;
+  }
+  .empty-hint { color: var(--text-muted); font-size: 14px; text-align: center; padding: 48px 20px; line-height: 1.6; }
+  kbd {
+    background: var(--panel-2);
+    border: 1px solid var(--border-strong);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: ui-monospace, monospace;
+    color: var(--text);
+  }
+
+  /* Subordinierte Sidebar-Aktionen (Reset, Export) */
+  aside .ghost.sub-action {
+    font-size: 12px;
+    min-height: 36px;
+    padding: 8px 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  aside .ghost.sub-action:hover:not(:disabled) {
+    color: var(--text);
+  }
+
+  /* ===== Sidebar-Header (Theme-Toggle + Mobile-Hamburger) ===== */
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .sidebar-header h1 { margin: 0; }
+  .icon-btn {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    border-radius: 8px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    font-weight: 500;
+    transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out;
+  }
+  .icon-btn:hover { background: var(--panel-2); color: var(--text); }
+  .icon-btn svg { width: 18px; height: 18px; display: block; }
+  /* Default (Light): Mond-Icon zeigt "Klick fuer Dark-Mode" */
+  .icon-btn .icon-sun { display: none; }
+  .icon-btn .icon-moon { display: block; }
+  /* Dark-Mode: Sonne zeigt "Klick fuer Light-Mode" */
+  [data-theme="dark"] .icon-btn .icon-sun { display: block; }
+  [data-theme="dark"] .icon-btn .icon-moon { display: none; }
+
+  /* Hamburger nur auf Mobile sichtbar */
+  #menuToggleBtn { display: none; }
+
+  /* ===== Spinner / Lade-Indikatoren ===== */
+  .spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: -3px;
+    margin-right: 8px;
+  }
+  .spinner.sm { width: 14px; height: 14px; border-width: 2px; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    color: var(--muted);
+  }
+
+  /* ===== Shortcut-Modal ===== */
+  .shortcut-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--overlay);
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+  }
+  .shortcut-overlay.open { display: flex; animation: overlay-fade 180ms ease-out; }
+  @keyframes overlay-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .shortcut-modal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px 24px;
+    max-width: 420px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    animation: modal-pop 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes modal-pop {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .shortcut-modal h3 {
+    margin: 0 0 14px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 17px;
+  }
+  .shortcut-modal .close-x {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    min-height: 0;
+    padding: 4px 8px;
+    font-weight: 400;
+    border-radius: 6px;
+  }
+  .shortcut-modal .close-x:hover { background: var(--panel-2); color: var(--text); }
+  .shortcut-modal ul { list-style: none; padding: 0; margin: 0; }
+  .shortcut-modal li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .shortcut-modal li:last-child { border-bottom: none; }
+  .shortcut-modal .keys { display: inline-flex; gap: 4px; flex-shrink: 0; margin-left: 12px; }
+
+  /* ===== Cloud-Sync: Login-Anzeige & Status-Indikator ===== */
+  .login-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 8px 0 10px 0;
+    padding: 8px 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .login-bar .login-user {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex: 1;
+  }
+  .login-bar .login-user svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    color: var(--text-soft);
+  }
+  .login-bar .login-user > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .login-bar .login-name { color: var(--text); font-weight: 500; }
+  .login-bar .logout-link {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0;
+    text-decoration: underline;
+    min-height: 0;
+    font-weight: 500;
+  }
+  .login-bar .logout-link:hover { color: var(--accent-hover); }
+
+  .sync-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 6px 0 4px 0;
+    padding: 0 2px;
+    background: transparent;
+  }
+  .sync-status::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-soft);
+    flex-shrink: 0;
+  }
+  .sync-status.ok::before { background: var(--good); }
+  .sync-status.offline::before { background: var(--partial); }
+  .sync-status.syncing::before {
+    background: var(--accent);
+    animation: sync-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes sync-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  /* ===== Namens-Modal ===== */
+  .name-modal input[type=text] {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 8px 0 14px 0;
+    padding: 11px 13px;
+    font-size: 15px;
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    background: var(--panel);
+    color: var(--text);
+  }
+  .name-modal .row {
+    display: flex;
+    gap: 8px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .name-modal button[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* ===== Mobile (max-width: 880px) ===== */
+  @media (max-width: 880px) {
+    body { font-size: 15px; }
+    .app { grid-template-columns: 1fr; }
+    aside {
+      position: static;
+      max-height: none;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      padding: 14px 16px;
+      overflow-y: visible;
+    }
+    main { padding: 18px 16px; max-width: 100%; }
+    /* Hamburger zeigen */
+    #menuToggleBtn { display: inline-flex; }
+    /* Standardmaessig Sidebar-Inhalte einklappen ausser Header */
+    aside.collapsed > *:not(.sidebar-header):not(.browser-warn) { display: none; }
+    /* Buttons groesser fuer Touch */
+    button, .icon-btn { min-height: 44px; }
+    .icon-btn { width: 44px; height: 44px; }
+    select, textarea, input[type=text] { min-height: 44px; font-size: 15px; }
+    textarea {
+      resize: none;
+      min-height: 100px;
+    }
+    .topic-item { padding: 12px; font-size: 14px; min-height: 44px; }
+    h1 { font-size: 17px; }
+    main .row { gap: 8px; }
+    .card { padding: 18px; }
+    .question-box { font-size: 16px; padding: 18px; }
+    aside .ghost.sub-action { min-height: 40px; }
+  }
+
+  /* ===== Reduced Motion ===== */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar">
+    <div class="sidebar-header">
+      <h1>Finanzsystem-Trainer</h1>
+      <div style="display:flex; gap:6px;">
+        <button id="themeToggleBtn" class="icon-btn" type="button" aria-label="Theme wechseln" title="Theme wechseln (T)">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2"></path><path d="M12 20v2"></path>
+            <path d="M4.93 4.93l1.41 1.41"></path><path d="M17.66 17.66l1.41 1.41"></path>
+            <path d="M2 12h2"></path><path d="M20 12h2"></path>
+            <path d="M4.93 19.07l1.41-1.41"></path><path d="M17.66 6.34l1.41-1.41"></path>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+        <button id="menuToggleBtn" class="icon-btn" type="button" aria-label="Menü ein-/ausklappen" aria-expanded="true" title="Menü">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 6h18"></path><path d="M3 12h18"></path><path d="M3 18h18"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="subtitle">Lokaler KI-Lerncoach · 18 Lehrziele</div>
+
+    <div class="login-bar" id="loginBar" style="display:none;">
+      <span class="login-user">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <span><strong class="login-name" id="loginName"></strong></span>
+      </span>
+      <button type="button" class="logout-link" id="logoutBtn" title="Namen vergessen und neu starten">abmelden</button>
+    </div>
+
+    <h2>Modell</h2>
+    <div id="status" class="status">Initialisiere…</div>
+    <div id="syncStatus" class="sync-status" style="display:none;">Cloud-Sync inaktiv</div>
+    <select id="modelSelect">
+      <option value="Qwen2.5-3B-Instruct-q4f16_1-MLC" selected>Qwen2.5-3B (~1.9 GB) · empfohlen</option>
+      <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Llama-3.2-3B (~1.9 GB)</option>
+      <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama-3.2-1B (~0.9 GB) · klein/schnell</option>
+      <option value="Qwen2.5-7B-Instruct-q4f16_1-MLC">Qwen2.5-7B (~4.4 GB) · präziser</option>
+      <option value="gemma-2-2b-it-q4f16_1-MLC">Gemma-2-2B (~1.5 GB)</option>
+    </select>
+    <button id="loadModelBtn" style="margin-top:8px; width:100%;">Modell laden</button>
+    <div class="hint">Modelle werden einmalig heruntergeladen und im Browser-Cache gespeichert.</div>
+
+    <h2>Lehrziele</h2>
+    <div id="lehrzieleSourceHint" style="display:none;" class="hint">Lehrziele aus lehrziele.json geladen.</div>
+    <ul class="topic-list" id="topicList"></ul>
+
+    <button id="startQuizBtn" style="width:100%; margin-top:8px;">Quiz starten (5 Fragen)</button>
+
+    <h2>Fortschritt</h2>
+    <div id="progressStats"></div>
+    <button class="ghost sub-action" id="exportCsvBtn" style="width:100%; margin-top:10px;">Fortschritt als CSV</button>
+    <button class="ghost sub-action" id="resetBtn" style="width:100%; margin-top:6px;">Fortschritt zurücksetzen</button>
+  </aside>
+
+  <main>
+    <div id="browserWarn" class="browser-warn" style="display:none;">
+      ⚠️ Ihr Browser unterstützt kein WebGPU. Das Tool funktioniert am besten in <strong>Chrome 113+, Edge 113+ oder Arc</strong>. In Firefox/Safari aktuell nur eingeschränkt.
+    </div>
+
+    <div id="quizView" style="display:none;"></div>
+
+    <div class="card" id="welcomeCard">
+      <h3>Willkommen</h3>
+      <p>Übe die 18 Lehrziele zum Schweizer Finanzsystem mit einer <strong>lokalen KI direkt im Browser</strong> – keine Daten verlassen deinen Computer.</p>
+      <ol>
+        <li>Links <em>„Modell laden"</em> klicken (einmalig 1–10 Min, danach offline).</li>
+        <li>Lehrziel wählen.</li>
+        <li>Frage in eigenen Worten beantworten.</li>
+        <li>KI gibt sofort Feedback und Hinweise.</li>
+      </ol>
+      <p class="hint"><strong>Hinweis:</strong> Kleine lokale Modelle können bei nuancierten Antworten gelegentlich danebenliegen. Eine Musterlösung ist jederzeit verfügbar.</p>
+    </div>
+
+    <div id="topicView" style="display:none;">
+      <div class="card">
+        <h3 id="topicTitle"></h3>
+        <div id="topicSubgoals"></div>
+        <div class="stichworte" id="topicKeywords"></div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="margin-bottom: 12px;">
+          <div>
+            <label>Modus</label>
+            <select id="modeSelect">
+              <option value="generate">KI generiert eine Frage</option>
+              <option value="rephrase">KI formuliert Frage immer neu</option>
+              <option value="open">Freier Modus (eigene Frage stellen)</option>
+              <option value="mc">Multiple-Choice (4 Antworten)</option>
+            </select>
+          </div>
+          <div>
+            <label>Schwierigkeit</label>
+            <select id="difficultySelect">
+              <option value="leicht">Leicht (Definition)</option>
+              <option value="mittel" selected>Mittel (Zusammenhang)</option>
+              <option value="schwer">Schwer (Anwendung/Beispiel)</option>
+            </select>
+          </div>
+          <div style="margin-left:auto; align-self: flex-end;">
+            <button id="newQuestionBtn">Neue Frage</button>
+          </div>
+        </div>
+
+        <div id="questionContainer"></div>
+
+        <div id="answerBlock" style="display:none; margin-top: 16px;">
+          <label>Ihre Antwort</label>
+          <textarea id="answerInput" placeholder="Schreiben Sie Ihre Antwort in eigenen Worten…"></textarea>
+          <div class="row" style="margin-top: 8px;">
+            <button id="submitBtn">Antwort prüfen <span style="opacity:0.6; font-weight:400; margin-left:4px;">(<kbd>Cmd</kbd>+<kbd>Enter</kbd>)</span></button>
+            <button class="ghost" id="hintBtn">Hinweis</button>
+            <button class="ghost" id="solutionBtn">Musterlösung</button>
+          </div>
+        </div>
+
+        <div id="feedbackContainer"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Tastaturkuerzel-Modal -->
+<div id="shortcutOverlay" class="shortcut-overlay" role="dialog" aria-modal="true" aria-labelledby="shortcutTitle" aria-hidden="true">
+  <div class="shortcut-modal" role="document">
+    <h3 id="shortcutTitle">
+      Tastaturkürzel
+      <button type="button" class="close-x" id="shortcutCloseBtn" aria-label="Schliessen">×</button>
+    </h3>
+    <ul>
+      <li><span>Antwort prüfen</span><span class="keys"><kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd></span></li>
+      <li><span>Neue Frage</span><span class="keys"><kbd>n</kbd></span></li>
+      <li><span>Hinweis anzeigen</span><span class="keys"><kbd>h</kbd></span></li>
+      <li><span>Musterlösung anzeigen</span><span class="keys"><kbd>m</kbd></span></li>
+      <li><span>Theme wechseln</span><span class="keys"><kbd>t</kbd></span></li>
+      <li><span>Lehrziel 1–9 auswählen</span><span class="keys"><kbd>1</kbd>…<kbd>9</kbd></span></li>
+      <li><span>Diese Übersicht öffnen</span><span class="keys"><kbd>?</kbd></span></li>
+      <li><span>Schliessen</span><span class="keys"><kbd>Esc</kbd></span></li>
+    </ul>
+    <p class="hint" style="margin-top:12px;">Kürzel sind deaktiviert, solange ein Eingabefeld den Fokus hat.</p>
+  </div>
+</div>
+
+<!-- Namens-Modal beim Start (Cloud-Sync-Identifikation) -->
+<div id="nameOverlay" class="shortcut-overlay" role="dialog" aria-modal="true" aria-labelledby="nameTitle" aria-hidden="true">
+  <div class="shortcut-modal name-modal" role="document">
+    <h3 id="nameTitle" style="justify-content:flex-start;">Wie heisst du?</h3>
+    <p style="margin:0 0 8px 0; font-size:14px;">
+      Mit deinem Namen wird dein Lernfortschritt online gespeichert und du kannst auf jedem Gerät weitermachen.
+    </p>
+    <label for="nameInput" style="font-size:12px; color: var(--muted);">Vorname oder Spitzname</label>
+    <input type="text" id="nameInput" autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="40" required placeholder="z. B. Anna">
+    <div class="row">
+      <button id="nameSubmitBtn" type="button" disabled>Loslegen</button>
+      <button id="nameAnonymBtn" class="ghost" type="button">Anonym fortfahren</button>
+    </div>
+    <p class="hint" style="margin-top:12px;">
+      <strong>Anonym fortfahren:</strong> kein Cloud-Sync — der Fortschritt bleibt nur in diesem Browser.
+    </p>
+  </div>
+</div>
+
+<script type="module">
+import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+
+// =====================================================================
+// LEHRZIELE
+// =====================================================================
+// Optional: Externe Datei `lehrziele.json` neben dieser HTML kann die Liste
+// ueberschreiben. Schema:
+// [
+//   { "nr": 1, "titel": "...", "unterziele": ["..."], "stichworte": ["..."] }
+// ]
+// Pflichtfelder: nr, titel, unterziele, stichworte. Bei Validierungsfehler
+// wird die Inline-Liste verwendet. Hinweis: fetch von file:// scheitert in
+// vielen Browsern; daher nur via lokalen Server zuverlaessig.
+let LEHRZIELE = [
+  {
+    nr: 1, titel: "Grundlagen des Bankensystems",
+    unterziele: [
+      "Unterschied zwischen Nationalbank und Geschäftsbanken erklären",
+      "Rolle der Banken als Vermittler zwischen Sparern und Kreditnehmern beschreiben",
+      "Grundlegender Aufbau des Finanzsystems"
+    ],
+    stichworte: ["Nationalbank", "Geschäftsbanken", "Sparer", "Kreditnehmer", "Vermittler", "Finanzsystem", "Aufsicht"]
+  },
+  {
+    nr: 2, titel: "Schweizerische Nationalbank (SNB)",
+    unterziele: [
+      "Hauptaufgaben der SNB: Preisstabilität, Geldpolitik, Stabilisierung des Finanzsystems",
+      "Wie die SNB handelt: Festlegung Leitzins, geldpolitische Instrumente"
+    ],
+    stichworte: ["Preisstabilität", "Geldpolitik", "Leitzins", "Finanzsystemstabilität", "Devisen", "geldpolitische Instrumente", "unabhängig"]
+  },
+  {
+    nr: 3, titel: "Leitzins",
+    unterziele: [
+      "Was der Leitzins ist",
+      "Wirkung auf Geschäftsbanken: Kreditkosten, Sparanreize",
+      "Wirkungskette: Leitzins ↑ → Kredite teurer → Nachfrage ↓ → Geldmenge ↓ → Inflation ↓",
+      "Unterschied niedriger / hoher Leitzins (ankurbelnd vs. bremsend)"
+    ],
+    stichworte: ["Leitzins", "Refinanzierung", "Kreditzins", "Sparzins", "Geldmenge", "Inflation", "Konjunktur", "ankurbelnd", "bremsend"]
+  },
+  {
+    nr: 4, titel: "Geschäftsbanken",
+    unterziele: [
+      "Funktionsweise: Einlagen, Kredite, Zahlungsverkehr",
+      "Zinsmarge: Kreditzins > Sparzins",
+      "Verhalten bei unterschiedlichen Leitzinsen"
+    ],
+    stichworte: ["Einlagen", "Kredite", "Zahlungsverkehr", "Zinsmarge", "Kreditzins", "Sparzins", "Marge", "Refinanzierung"]
+  },
+  {
+    nr: 5, titel: "Mindestreservesatz",
+    unterziele: [
+      "Was der Mindestreservesatz ist",
+      "Beispielanwendung (Einlage → Reserve → Kreditvergabe)",
+      "Wirkung: hoher Satz weniger Kredite, tiefer Satz mehr Kredite"
+    ],
+    stichworte: ["Mindestreserve", "Reserve", "Kreditvergabe", "Geldschöpfung", "Multiplikator", "Liquidität"]
+  },
+  {
+    nr: 6, titel: "Zusammenhang SNB–Geschäftsbanken–Wirtschaft",
+    unterziele: [
+      "Gesamtzusammenhang: Geldpolitik → Bankenverhalten → Kreditvergabe → Geldmenge → Inflation",
+      "Aktuelle geldpolitische Entscheidungen interpretieren"
+    ],
+    stichworte: ["Geldpolitik", "Transmission", "Kreditvergabe", "Geldmenge", "Inflation", "Konjunktur", "Wachstum"]
+  },
+  {
+    nr: 7, titel: "Staatsobligationen",
+    unterziele: [
+      "Was eine Staatsobligation ist (Kredit an den Staat)",
+      "Ablauf: Kapitalfluss, Ausgabe, Zinszahlungen, Rückzahlung Nominalwert",
+      "Begriffe: Nominalwert, Zinssatz/Coupon, Laufzeit",
+      "Warum Staaten Obligationen ausgeben"
+    ],
+    stichworte: ["Staatsobligation", "Anleihe", "Nominalwert", "Coupon", "Zinssatz", "Laufzeit", "Investor", "Staatsfinanzierung", "Schuldverschreibung"]
+  },
+  {
+    nr: 8, titel: "Obligationen – Anwendung",
+    unterziele: [
+      "Einfache Berechnungen (Zins, Ertrag)",
+      "Warum sich Obligationenpreise verändern (Zinsniveau)",
+      "Begriff Rendite verstehen und anwenden"
+    ],
+    stichworte: ["Rendite", "Zinsniveau", "Kurs", "Obligationenpreis", "Coupon", "Marktzins", "Kursrisiko"]
+  },
+  {
+    nr: 9, titel: "Bankenkrisen",
+    unterziele: [
+      "Ursachen: Fehlmanagement, hohe Risiken, ungenügende Reserven",
+      "Beispiele: Kantonalbank Solothurn, Immobilienkrise 2007",
+      "Rolle des Staates (Staatsgarantie)",
+      "Rolle der Nationalbank"
+    ],
+    stichworte: ["Fehlmanagement", "Risiko", "Reserven", "Staatsgarantie", "Lender of last resort", "Bail-out", "Vertrauensverlust", "Bank Run"]
+  },
+  {
+    nr: 10, titel: "Leverage-Effekt",
+    unterziele: [
+      "Was der Leverage-Effekt ist",
+      "Höhere Rendite durch Fremdkapital, gleichzeitig höheres Risiko",
+      "Wirkung in Krisenzeiten"
+    ],
+    stichworte: ["Leverage", "Hebel", "Fremdkapital", "Eigenkapital", "Rendite", "Risiko", "Verlust", "Hebelwirkung"]
+  },
+  {
+    nr: 11, titel: "Entwicklung des Geldsystems",
+    unterziele: [
+      "Entwicklung: Warengeld → Münzen → Papiergeld → FIAT-Geld",
+      "Was FIAT-Geld ist",
+      "Vor- und Nachteile beurteilen"
+    ],
+    stichworte: ["Warengeld", "Münzen", "Papiergeld", "FIAT", "Vertrauen", "Goldstandard", "Wertaufbewahrung", "Tauschmittel"]
+  },
+  {
+    nr: 12, titel: "Moderne Geldformen",
+    unterziele: [
+      "Unterschiede: CBDC, Stablecoins, 100%-gedeckte Privatwährungen",
+      "Eigenschaften, Vor- und Nachteile analysieren"
+    ],
+    stichworte: ["CBDC", "Zentralbankgeld", "Stablecoin", "USDT", "USDC", "Privatwährung", "Deckung", "Reserve", "digital"]
+  },
+  {
+    nr: 13, titel: "Auswirkungen neuer Geldformen",
+    unterziele: [
+      "Wie neue Geldformen Banken verändern",
+      "Auswirkungen auf Geldpolitik",
+      "Auswirkungen auf Finanzsystem"
+    ],
+    stichworte: ["Disintermediation", "Bankenrolle", "Geldpolitik", "Steuerung", "Finanzsystem", "Innovation", "Risiko"]
+  },
+  {
+    nr: 14, titel: "Kryptowährungen (Bitcoin)",
+    unterziele: [
+      "Was Bitcoin ist (dezentrale digitale Währung)",
+      "Funktionsweise (Blockchain-Grundprinzip)",
+      "Gründe für Kursentwicklungen",
+      "Risiken (Volatilität, Regulierung)"
+    ],
+    stichworte: ["Bitcoin", "dezentral", "Blockchain", "Mining", "Volatilität", "Regulierung", "Knappheit", "21 Mio", "Wallet"]
+  },
+  {
+    nr: 15, titel: "Blockchain (Grundverständnis)",
+    unterziele: [
+      "Wie eine Blockchain funktioniert",
+      "Unterschied zum klassischen Bankensystem",
+      "Vorteile (Dezentralität)"
+    ],
+    stichworte: ["Blockchain", "Block", "Hash", "Kette", "Konsens", "dezentral", "manipulationssicher", "öffentlich", "Verteiltes Ledger"]
+  },
+  {
+    nr: 16, titel: "Zukünftige Zahlungssysteme",
+    unterziele: [
+      "Vergleich: Bargeld, digitales Bezahlen (Twint), Krypto, CBDC",
+      "Zukunftsfähigkeit beurteilen"
+    ],
+    stichworte: ["Bargeld", "Twint", "Kryptowährung", "CBDC", "Zahlungssystem", "Akzeptanz", "Geschwindigkeit", "Kosten", "Privatsphäre"]
+  },
+  {
+    nr: 17, titel: "Regionale Währungen",
+    unterziele: [
+      "Was regionale Währungen sind (z. B. WIR), Funktionsweise",
+      "Zweck: Förderung der lokalen Wirtschaft"
+    ],
+    stichworte: ["WIR", "Regionalwährung", "Komplementärwährung", "lokale Wirtschaft", "KMU", "Tauschsystem", "Zirkulation"]
+  },
+  {
+    nr: 18, titel: "Gesamtverständnis (Schlüsselkompetenz)",
+    unterziele: [
+      "Finanzsystem als Zusammenspiel: Staat, Nationalbank, Geschäftsbanken, Finanzmärkte, neue digitale Geldformen",
+      "Wie diese gemeinsam Geldmenge, Inflation und wirtschaftliche Entwicklung beeinflussen"
+    ],
+    stichworte: ["Staat", "Nationalbank", "Geschäftsbanken", "Finanzmärkte", "digitale Geldformen", "Geldmenge", "Inflation", "Konjunktur", "Wirtschaftspolitik"]
+  }
+];
+
+// =====================================================================
+// STATE
+// =====================================================================
+let engine = null;
+let currentTopic = null;
+let currentQuestion = null;
+let isLoading = false;
+// =====================================================================
+// STORAGE-LAYER (mit Cloud-Sync via Netlify Blobs)
+// =====================================================================
+// Pro Schueler-Name eigener localStorage-Schluessel als lokaler Cache.
+// Bei aktivem Cloud-Sync wird der Fortschritt zusaetzlich an
+// /api/progress geschickt (siehe schedulePush / pullCloudProgress).
+const USERNAME_KEY = "finanzsystem-trainer-username";
+const STORAGE_PREFIX = "finanzsystem-trainer-progress-v1::";
+
+function getCurrentUsername() {
+  try { return localStorage.getItem(USERNAME_KEY); } catch { return null; }
+}
+
+function isCloudSyncActive() {
+  const name = getCurrentUsername();
+  return !!name && name !== "__anonym__";
+}
+
+function localKey() {
+  const name = (getCurrentUsername() || "__anonym__").toLowerCase();
+  return STORAGE_PREFIX + name;
+}
+
+function loadProgressLocal() {
+  try { return JSON.parse(localStorage.getItem(localKey())) || {}; } catch { return {}; }
+}
+function saveProgressLocal(p) {
+  try { localStorage.setItem(localKey(), JSON.stringify(p)); } catch {}
+}
+
+// Backwards-kompatibel: alte Variante "saveProgress" weiterhin als Wrapper.
+function saveProgress(p) {
+  saveProgressLocal(p);
+  // Cloud-Sync wird ueber schedulePush() in recordResult() angestossen,
+  // damit nicht jeder save-Aufruf einen Push triggert.
+}
+
+let progress = loadProgressLocal(); // { "1": { good: 2, partial: 1, bad: 0, last: "good" }, ... }
+
+// Quiz-State (Feature 2)
+let quiz = { active: false, questions: [], currentIdx: 0, results: [] };
+
+// =====================================================================
+// UI HELPERS
+// =====================================================================
+const $ = (id) => document.getElementById(id);
+const statusEl = $("status");
+
+function setStatus(msg, kind = "") {
+  statusEl.textContent = msg;
+  statusEl.className = "status " + kind;
+}
+
+function checkWebGPU() {
+  if (!navigator.gpu) {
+    $("browserWarn").style.display = "block";
+    return false;
+  }
+  return true;
+}
+
+function renderTopicList() {
+  const list = $("topicList");
+  list.innerHTML = "";
+  for (const lz of LEHRZIELE) {
+    const li = document.createElement("li");
+    li.className = "topic-item" + (currentTopic && currentTopic.nr === lz.nr ? " active" : "");
+    const dot = topicDot(lz.nr);
+    li.innerHTML = `<span><span class="topic-num">${lz.nr}.</span>${lz.titel}</span><span class="progress-dot ${dot}"></span>`;
+    li.onclick = () => selectTopic(lz);
+    list.appendChild(li);
+  }
+}
+
+function topicDot(nr) {
+  const p = progress[nr];
+  if (!p || !p.last) return "";
+  return p.last;
+}
+
+function renderProgressStats() {
+  const total = LEHRZIELE.length;
+  let good = 0, partial = 0, bad = 0, attempted = 0;
+  for (const lz of LEHRZIELE) {
+    const p = progress[lz.nr];
+    if (!p) continue;
+    attempted++;
+    if (p.last === "good") good++;
+    else if (p.last === "partial") partial++;
+    else if (p.last === "bad") bad++;
+  }
+  const pct = Math.round((good / total) * 100);
+  $("progressStats").innerHTML = `
+    <div class="stat-row"><span>Bearbeitet</span><span>${attempted} / ${total}</span></div>
+    <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+    <div class="stat-row"><span style="color:var(--good)">● Richtig</span><span>${good}</span></div>
+    <div class="stat-row"><span style="color:var(--partial)">● Teilweise</span><span>${partial}</span></div>
+    <div class="stat-row"><span style="color:var(--bad)">● Falsch</span><span>${bad}</span></div>
+  `;
+}
+
+function selectTopic(lz) {
+  // Wenn ein Quiz laeuft: nur nach Bestaetigung wechseln
+  if (quiz.active) {
+    if (!confirm("Quiz abbrechen?")) return;
+    endQuizUi();
+  }
+  currentTopic = lz;
+  currentQuestion = null;
+  $("welcomeCard").style.display = "none";
+  $("topicView").style.display = "block";
+  $("topicTitle").textContent = `${lz.nr}. ${lz.titel}`;
+  $("topicSubgoals").innerHTML = "<strong>Sie können…</strong><ul>" + lz.unterziele.map(u => `<li>${u}</li>`).join("") + "</ul>";
+  $("topicKeywords").textContent = "Schlüsselbegriffe: " + lz.stichworte.join(" · ");
+  $("questionContainer").innerHTML = `<div class="empty-hint">Klicken Sie auf <em>„Neue Frage"</em>, um eine KI-generierte Frage zu erhalten.</div>`;
+  $("answerBlock").style.display = "none";
+  $("feedbackContainer").innerHTML = "";
+  $("answerInput").value = "";
+  renderTopicList();
+}
+
+function recordResult(topicNr, kind /* good|partial|bad */) {
+  if (!progress[topicNr]) progress[topicNr] = { good: 0, partial: 0, bad: 0, last: null };
+  progress[topicNr][kind]++;
+  progress[topicNr].last = kind;
+  saveProgress(progress);
+  renderTopicList();
+  renderProgressStats();
+  // Cloud-Push (debounced); No-Op wenn anonym oder kein Name gesetzt.
+  schedulePush();
+}
+
+// =====================================================================
+// WEBLLM
+// =====================================================================
+async function loadModel() {
+  if (isLoading) return;
+  isLoading = true;
+  $("loadModelBtn").disabled = true;
+  const modelId = $("modelSelect").value;
+  setStatus(`Lade ${modelId.split("-").slice(0, 3).join("-")}…`);
+  try {
+    engine = await webllm.CreateMLCEngine(modelId, {
+      initProgressCallback: (p) => {
+        const pct = Math.round((p.progress || 0) * 100);
+        setStatus(`${p.text || "Lade…"} ${pct ? `(${pct}%)` : ""}`);
+      }
+    });
+    setStatus("Modell geladen ✓ (lokal & offline)", "ready");
+    $("loadModelBtn").textContent = "Modell wechseln / neu laden";
+  } catch (e) {
+    console.error(e);
+    setStatus("Fehler: " + e.message, "error");
+  } finally {
+    isLoading = false;
+    $("loadModelBtn").disabled = false;
+  }
+}
+
+async function chat(messages, opts = {}) {
+  if (!engine) throw new Error("Modell nicht geladen.");
+  const res = await engine.chat.completions.create({
+    messages,
+    temperature: opts.temperature ?? 0.4,
+    max_tokens: opts.max_tokens ?? 512,
+    response_format: opts.response_format,
+  });
+  return res.choices[0].message.content;
+}
+
+function ensureModel() {
+  if (!engine) {
+    setStatus("Bitte zuerst Modell laden.", "error");
+    return false;
+  }
+  return true;
+}
+
+// Doppelklick-Schutz: Aktions-Buttons während laufender KI-Anfrage sperren
+// Beim Sperren: Inline-Spinner einblenden + Originaltext sichern
+function setBusy(busy) {
+  for (const id of ["submitBtn", "newQuestionBtn", "hintBtn", "solutionBtn"]) {
+    const el = $(id);
+    if (!el) continue;
+    el.disabled = busy;
+    if (busy) {
+      if (!el.dataset.label) el.dataset.label = el.innerHTML;
+      el.innerHTML = `<span class="spinner sm"></span>… denkt nach`;
+    } else if (el.dataset.label) {
+      el.innerHTML = el.dataset.label;
+      delete el.dataset.label;
+    }
+  }
+}
+
+// =====================================================================
+// QUESTION GENERATION
+// =====================================================================
+async function generateQuestion() {
+  if (!currentTopic || !ensureModel()) return;
+  const mode = $("modeSelect").value;
+  const difficulty = $("difficultySelect").value;
+  const lz = currentTopic;
+
+  $("questionContainer").innerHTML = `<div class="empty-hint loading-line"><span class="spinner"></span>KI denkt nach…</div>`;
+  $("answerBlock").style.display = "none";
+  $("feedbackContainer").innerHTML = "";
+
+  setBusy(true);
+  try {
+    if (mode === "open") {
+      const prompts = lz.unterziele.map((u, i) => `${i + 1}. ${u}`).join("\n");
+      currentQuestion = {
+        mode: "open",
+        text: `Schreiben Sie in eigenen Worten, was Sie zu „${lz.titel}" wissen. Decken Sie idealerweise diese Punkte ab:\n\n${prompts}`,
+      };
+      showQuestion();
+      return;
+    }
+
+    if (mode === "mc") {
+      await generateMC(lz, difficulty);
+      return;
+    }
+
+    // generate / rephrase: KI formuliert eine Frage
+    const variation = mode === "rephrase" ? "Formuliere die Frage NEU und ANDERS als üblich, mit ungewöhnlichem Einstieg oder Beispielszene." : "";
+    const difficultySpec = difficulty === "leicht"
+      ? "Frage nach einer Definition oder einem Zweck."
+      : difficulty === "mittel"
+      ? "Frage nach einem Zusammenhang oder einer Wirkung."
+      : "Frage nach einer Anwendung, einem Beispiel oder einer Bewertung.";
+    const messages = [
+      { role: "system", content: "Du bist eine Schweizer Wirtschaftslehrerin. Du formulierst eine einzige präzise Prüfungsfrage in deutscher Sprache (kein \"ß\"), ohne Vor- oder Nachtext, ohne Auflistung. Die Frage soll das angegebene Lernziel auf dem angegebenen Schwierigkeitsgrad prüfen. Die Frage soll mindestens einen Fachbegriff aus den Schlüsselbegriffen voraussetzen, ohne ihn in der Frage selbst zu nennen. Sie darf NICHT mit Ja/Nein beantwortbar sein." },
+      { role: "user", content:
+`LERNZIEL: ${lz.titel}
+UNTERZIELE:
+${lz.unterziele.map(u => "- " + u).join("\n")}
+SCHLÜSSELBEGRIFFE: ${lz.stichworte.join(", ")}
+SCHWIERIGKEIT: ${difficulty}
+SPEZIFIKATION FÜR DIESE SCHWIERIGKEIT: ${difficultySpec}
+${variation}
+
+Formuliere genau EINE Frage in deutscher Sprache, die einen Schüler zur freien Antwort anregt. Keine Multiple-Choice, keine Ja/Nein-Frage. Antworte NUR mit der Frage selbst.` }
+    ];
+
+    try {
+      const q = await chat(messages, { temperature: 0.8, max_tokens: 200 });
+      currentQuestion = { mode: "generated", text: q.trim().replace(/^["„"']+|["""']+$/g, "") };
+      showQuestion();
+    } catch (e) {
+      $("questionContainer").innerHTML = `<div class="feedback bad"><h4>Fehler</h4><p>${escapeHtml(e.message)}</p></div>`;
+    }
+  } finally {
+    setBusy(false);
+  }
+}
+
+function showQuestion() {
+  $("questionContainer").innerHTML = `<div class="question-box">${escapeHtml(currentQuestion.text).replace(/\n/g, "<br>")}</div>`;
+  $("answerBlock").style.display = "block";
+  $("answerInput").focus();
+}
+
+// =====================================================================
+// MULTIPLE CHOICE
+// =====================================================================
+async function generateMC(lz, difficulty) {
+  const messages = [
+    { role: "system", content: "Du bist eine Schweizer Wirtschaftslehrerin. Du erstellst eine Multiple-Choice-Frage in JSON-Format. Antworte AUSSCHLIESSLICH mit gültigem JSON, keine Erklärung. Die falschen Antworten (Distraktoren) sollen plausibel klingen, aber jeweils einen typischen Schülerfehler abbilden — z.B. eine Verwechslung zweier Begriffe, eine Umkehrung der Wirkungskette, oder eine zu enge bzw. zu weite Definition. Sprache: Deutsch (Schweiz, kein \"ß\")." },
+    { role: "user", content:
+`LERNZIEL: ${lz.titel}
+UNTERZIELE:
+${lz.unterziele.map(u => "- " + u).join("\n")}
+SCHLÜSSELBEGRIFFE: ${lz.stichworte.join(", ")}
+SCHWIERIGKEIT: ${difficulty}
+
+Erstelle eine Multiple-Choice-Frage mit genau 4 Antwortmöglichkeiten, davon GENAU EINE richtig. Die falschen sollen plausibel klingen. Format:
+{
+  "frage": "...",
+  "antworten": ["A …", "B …", "C …", "D …"],
+  "richtig": 0,
+  "begruendung": "Warum die richtige Antwort stimmt."
+}` }
+  ];
+
+  try {
+    const raw = await chat(messages, { temperature: 0.6, max_tokens: 600, response_format: { type: "json_object" } });
+    const data = parseJsonLoose(raw);
+    if (!data || !Array.isArray(data.antworten) || data.antworten.length !== 4) throw new Error("Ungültiges Format vom Modell.");
+    currentQuestion = { mode: "mc", text: data.frage, ...data };
+    renderMC();
+  } catch (e) {
+    $("questionContainer").innerHTML = `<div class="feedback bad"><h4>Fehler beim Generieren</h4><p>${escapeHtml(e.message)}</p><p>Versuchen Sie es erneut oder wechseln Sie das Modell.</p></div>`;
+  }
+}
+
+function renderMC() {
+  const q = currentQuestion;
+  const html = `
+    <div class="question-box">${escapeHtml(q.frage)}</div>
+    <div style="margin-top:12px;">
+      ${q.antworten.map((a, i) => `<button class="ghost" style="display:block;width:100%;text-align:left;margin-bottom:6px;" data-mc="${i}">${String.fromCharCode(65 + i)}) ${escapeHtml(a)}</button>`).join("")}
+    </div>
+  `;
+  $("questionContainer").innerHTML = html;
+  $("answerBlock").style.display = "none";
+  document.querySelectorAll("[data-mc]").forEach(b => b.onclick = () => evaluateMC(parseInt(b.dataset.mc)));
+}
+
+function evaluateMC(idx) {
+  const q = currentQuestion;
+  const richtig = idx === q.richtig;
+  const kind = richtig ? "good" : "bad";
+  recordResult(currentTopic.nr, kind);
+  document.querySelectorAll("[data-mc]").forEach((b, i) => {
+    b.disabled = true;
+    if (i === q.richtig) b.style.borderColor = "var(--good)";
+    if (i === idx && i !== q.richtig) b.style.borderColor = "var(--bad)";
+  });
+  $("feedbackContainer").innerHTML = `
+    <div class="feedback ${kind}">
+      <h4><span class="badge ${kind}">${richtig ? "Richtig" : "Falsch"}</span></h4>
+      <p>${escapeHtml(q.begruendung || "")}</p>
+    </div>`;
+}
+
+// =====================================================================
+// VALIDATION
+// =====================================================================
+async function submitAnswer() {
+  if (!currentQuestion || !ensureModel()) return;
+  const ans = $("answerInput").value.trim();
+  if (!ans) { return; }
+
+  const lz = currentTopic;
+  $("feedbackContainer").innerHTML = `<div class="empty-hint loading-line"><span class="spinner"></span>KI prüft Ihre Antwort…</div>`;
+  setBusy(true);
+
+  const messages = [
+    { role: "system", content:
+`Du bist eine strenge, aber faire Wirtschaftslehrerin in der Schweiz. Du bewertest die Antwort eines Schülers auf inhaltliche Korrektheit UND fachliche Präzision, NICHT auf Wortlaut. Gib eine ehrliche, lehrreiche Rückmeldung in deutscher Sprache (kein "ß").
+
+Antworte AUSSCHLIESSLICH mit gültigem JSON in genau diesem Format (keine Erklärung davor oder danach):
+{
+  "bewertung": "richtig" | "teilweise" | "falsch",
+  "begruendung": "2-4 Sätze: konkret, lehrreich.",
+  "fehlende_punkte": ["Punkt 1", "Punkt 2"],
+  "musterloesung": "Eine ideale, knappe Musterantwort in 2-4 Sätzen.",
+  "ist_zu_vage": true | false
+}
+
+Bewertungs-Kriterien (streng anwenden):
+- "richtig": NUR DANN, wenn (a) die Antwort die zentralen Fachbegriffe verwendet ODER ihre Bedeutung präzise umschreibt, UND (b) keinen Punkt der Unterziele klar verfehlt, UND (c) inhaltlich keine Fehler enthält.
+- "teilweise": Die Antwort ist sinngemäss in die richtige Richtung, aber es fehlen wichtige Punkte ODER sie ist zu vage formuliert ODER ihr fehlt die Wirkungskette.
+- "falsch": Die Antwort enthält klar falsche Aussagen oder verfehlt das Lernziel.
+
+Vagheits-Heuristik (wichtig!):
+"Zu vage" ist eine Antwort, die sinngemäss in die richtige Richtung geht, ABER ohne Fachbegriffe oder ohne nachvollziehbare Wirkungskette bleibt.
+- Beispiele für ZU VAGE: "Geld wird teurer", "die SNB macht etwas mit Zinsen", "Bitcoin ist riskant", "Banken verleihen Geld".
+- Beispiele für PRÄZISE: "Die SNB erhöht den Leitzins, dadurch steigen die Refinanzierungskosten der Geschäftsbanken, Kredite werden teurer, die Geldmenge sinkt und die Inflation wird gebremst."
+Wenn die Antwort sinngemäss richtig ABER ohne Fachbegriffe ODER ohne Wirkungskette ist, MUSST du bewertung = "teilweise" und ist_zu_vage = true setzen.
+
+Stichworte als Indikatoren (nicht als Pflicht):
+Die ERWARTETEN SCHLÜSSELBEGRIFFE sind Indikatoren für Präzision, KEINE wörtliche Pflicht. Eine Antwort, die KEINEN der Schlüsselbegriffe verwendet UND ihre Bedeutung auch nicht inhaltlich umschreibt, ist mit hoher Wahrscheinlichkeit "teilweise" mit ist_zu_vage = true.
+
+Begründungs-Stil (lehrreich, nicht generisch):
+In "begruendung" (2-4 Sätze) erkläre konkret, WAS gut ist UND WO genau die Lücke ist. Vermeide generische Floskeln wie "gut formuliert", "nicht ganz richtig" oder "okay". Nenne den fehlenden Fachbegriff explizit und sage, WARUM er hier wichtig ist.` },
+    { role: "user", content:
+`LERNZIEL: ${lz.titel}
+UNTERZIELE DES LERNZIELS:
+${lz.unterziele.map(u => "- " + u).join("\n")}
+ERWARTETE SCHLÜSSELBEGRIFFE (Indikatoren): ${lz.stichworte.join(", ")}
+
+GESTELLTE FRAGE:
+${currentQuestion.text}
+
+ANTWORT DES SCHÜLERS:
+${ans}
+
+--- ORIENTIERUNGS-BEISPIELE (Stil der Bewertung) ---
+
+BEISPIEL 1 — zu vage, daher "teilweise":
+Lehrziel-Kontext: Leitzins der SNB.
+Antwort: "Wenn der Leitzins steigt, wird das Geld teurer."
+Bewertung:
+{
+  "bewertung": "teilweise",
+  "ist_zu_vage": true,
+  "begruendung": "Die Richtung stimmt, aber die zentrale Mechanik fehlt: Es bleibt unklar, WIE der Leitzins wirkt — über die Refinanzierungskosten der Geschäftsbanken, höhere Kreditzinsen, sinkende Kreditnachfrage, abnehmende Geldmenge und damit gebremste Inflation. Werde präziser mit der Wirkungskette und nutze die Fachbegriffe.",
+  "fehlende_punkte": ["Refinanzierungskosten der Geschäftsbanken", "Wirkungskette zu Inflation", "Geldmenge"],
+  "musterloesung": "Erhöht die SNB den Leitzins, steigen die Refinanzierungskosten der Geschäftsbanken. Diese geben höhere Zinsen weiter, Kredite werden teurer und Sparen attraktiver. Die Geldmenge sinkt und damit die Inflation."
+}
+
+BEISPIEL 2 — präzise, daher "richtig":
+Lehrziel-Kontext: Leitzins der SNB.
+Antwort: "Erhöht die SNB den Leitzins, steigen die Refinanzierungskosten der Geschäftsbanken. Diese geben höhere Zinsen weiter, Kredite werden teurer und Sparen attraktiver. Die Geldmenge sinkt und damit die Inflation."
+Bewertung:
+{
+  "bewertung": "richtig",
+  "ist_zu_vage": false,
+  "begruendung": "Die Wirkungskette ist vollständig und in den richtigen Fachbegriffen ausgedrückt: Refinanzierung, Kreditzins, Geldmenge, Inflation. Die Kausalität ist nachvollziehbar.",
+  "fehlende_punkte": [],
+  "musterloesung": "Erhöht die SNB den Leitzins, steigen die Refinanzierungskosten der Geschäftsbanken. Diese geben höhere Zinsen weiter, Kredite werden teurer und Sparen attraktiver. Die Geldmenge sinkt und damit die Inflation."
+}
+
+--- ENDE BEISPIELE ---
+
+Bewerte jetzt die ANTWORT DES SCHÜLERS oben nach den Kriterien — im selben Stil wie die Beispiele, aber bezogen auf das gegebene LERNZIEL. Antworte nur mit JSON.` }
+  ];
+
+  try {
+    const raw = await chat(messages, { temperature: 0.2, max_tokens: 700, response_format: { type: "json_object" } });
+    const data = parseJsonLoose(raw);
+    if (!data || !data.bewertung) throw new Error("Antwort des Modells konnte nicht interpretiert werden.");
+    renderFeedback(data);
+    const kind = data.bewertung === "richtig" ? "good" : data.bewertung === "teilweise" ? "partial" : "bad";
+    recordResult(lz.nr, kind);
+  } catch (e) {
+    $("feedbackContainer").innerHTML = `<div class="feedback bad"><h4>Fehler</h4><p>${escapeHtml(e.message)}</p><p>Versuchen Sie „Antwort prüfen" erneut oder wechseln Sie das Modell.</p></div>`;
+  } finally {
+    setBusy(false);
+  }
+}
+
+function renderFeedback(data) {
+  const kind = data.bewertung === "richtig" ? "good" : data.bewertung === "teilweise" ? "partial" : "bad";
+  const label = data.bewertung === "richtig" ? "Richtig" : data.bewertung === "teilweise" ? "Teilweise" : "Falsch";
+  const fehlend = Array.isArray(data.fehlende_punkte) && data.fehlende_punkte.length
+    ? `<p><strong>Fehlt / unpräzise:</strong></p><ul>${data.fehlende_punkte.map(p => `<li>${escapeHtml(p)}</li>`).join("")}</ul>`
+    : "";
+  const vage = data.ist_zu_vage ? `<p style="color:var(--warn)"><strong>⚠ Hinweis:</strong> Ihre Antwort ist sinngemäss in die richtige Richtung, aber zu vage formuliert. Werden Sie präziser mit Fachbegriffen.</p>` : "";
+  $("feedbackContainer").innerHTML = `
+    <div class="feedback ${kind}">
+      <h4><span class="badge ${kind}">${label}</span></h4>
+      <p>${escapeHtml(data.begruendung || "")}</p>
+      ${vage}
+      ${fehlend}
+      <details><summary>Musterlösung anzeigen</summary><p>${escapeHtml(data.musterloesung || "—")}</p></details>
+    </div>`;
+}
+
+async function showHint() {
+  if (!currentTopic || !ensureModel() || !currentQuestion) return;
+  $("feedbackContainer").innerHTML = `<div class="empty-hint loading-line"><span class="spinner"></span>Hinweis wird generiert…</div>`;
+  setBusy(true);
+  const messages = [
+    { role: "system", content: "Du bist eine hilfsbereite Wirtschaftslehrerin. Gib einen kurzen Hinweis (1-2 Sätze), der den Schüler in die richtige Richtung lenkt, ohne die Antwort direkt zu verraten. Nenne KEINEN der Schlüsselbegriffe direkt; lenke nur in deren Richtung (z.B. über eine Analogie, eine Frage oder einen Teilaspekt). Antworte nur mit dem Hinweis-Text. Sprache: Deutsch (Schweiz, kein \"ß\")." },
+    { role: "user", content: `LERNZIEL: ${currentTopic.titel}\nFRAGE: ${currentQuestion.text}\nSCHLÜSSELBEGRIFFE die helfen könnten: ${currentTopic.stichworte.join(", ")}\n\nGib einen knappen Hinweis.` }
+  ];
+  try {
+    const hint = await chat(messages, { temperature: 0.5, max_tokens: 150 });
+    $("feedbackContainer").innerHTML = `<div class="feedback partial"><h4>💡 Hinweis</h4><p>${escapeHtml(hint.trim())}</p></div>`;
+  } catch (e) {
+    $("feedbackContainer").innerHTML = `<div class="feedback bad"><p>${escapeHtml(e.message)}</p></div>`;
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function showSolution() {
+  if (!currentTopic || !ensureModel() || !currentQuestion) return;
+  $("feedbackContainer").innerHTML = `<div class="empty-hint loading-line"><span class="spinner"></span>Musterlösung wird erstellt…</div>`;
+  setBusy(true);
+  const messages = [
+    { role: "system", content: "Du bist eine Wirtschaftslehrerin. Schreibe eine ideale Musterantwort auf die folgende Frage. 3-5 Sätze, präzise, mit den korrekten Fachbegriffen, in deutscher Sprache (Schweiz, kein \"ß\"). Verwende explizit die Schlüsselbegriffe aus dem Lehrziel und mache die Wirkungskette nachvollziehbar." },
+    { role: "user", content: `LERNZIEL: ${currentTopic.titel}\nUNTERZIELE: ${currentTopic.unterziele.join("; ")}\nSCHLÜSSELBEGRIFFE: ${currentTopic.stichworte.join(", ")}\nFRAGE: ${currentQuestion.text}\n\nSchreibe die Musterantwort.` }
+  ];
+  try {
+    const sol = await chat(messages, { temperature: 0.3, max_tokens: 400 });
+    $("feedbackContainer").innerHTML = `<div class="feedback good"><h4>📘 Musterlösung</h4><p>${escapeHtml(sol.trim()).replace(/\n/g, "<br>")}</p></div>`;
+  } catch (e) {
+    $("feedbackContainer").innerHTML = `<div class="feedback bad"><p>${escapeHtml(e.message)}</p></div>`;
+  } finally {
+    setBusy(false);
+  }
+}
+
+// =====================================================================
+// UTILS
+// =====================================================================
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+function parseJsonLoose(s) {
+  try { return JSON.parse(s); } catch {}
+  // Versuche, JSON aus dem Text zu extrahieren
+  const m = s.match(/\{[\s\S]*\}/);
+  if (m) {
+    try { return JSON.parse(m[0]); } catch {}
+  }
+  return null;
+}
+
+// =====================================================================
+// EVENT BINDINGS
+// =====================================================================
+$("loadModelBtn").onclick = loadModel;
+$("newQuestionBtn").onclick = generateQuestion;
+$("submitBtn").onclick = submitAnswer;
+$("hintBtn").onclick = showHint;
+$("solutionBtn").onclick = showSolution;
+$("resetBtn").onclick = async () => {
+  const cloudActive = isCloudSyncActive();
+  const msg = cloudActive
+    ? "Allen Lernfortschritt wirklich zurücksetzen?\n\nLokaler UND Cloud-Fortschritt werden gelöscht."
+    : "Allen Lernfortschritt wirklich zurücksetzen?";
+  if (!confirm(msg)) return;
+  progress = {};
+  saveProgress(progress);
+  renderTopicList();
+  renderProgressStats();
+  if (cloudActive) {
+    setSyncStatus("syncing", "Lösche Cloud-Fortschritt…");
+    try {
+      const name = getCurrentUsername();
+      const res = await fetch(`/api/progress?name=${encodeURIComponent(name)}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setSyncStatus("ok", "Cloud-Fortschritt gelöscht.");
+    } catch (e) {
+      setSyncStatus("offline", "Cloud-Reset fehlgeschlagen – lokal aber gelöscht.");
+      console.warn("[Cloud-Sync] Delete fehlgeschlagen:", e);
+    }
+  }
+};
+// =====================================================================
+// THEME-TOGGLE (Dark/Light) + Persistenz
+// =====================================================================
+const THEME_KEY = "finanzsystem-trainer-theme";
+function applyTheme(theme) {
+  // Light = Default (kein data-theme-Attribut), Dark = Override
+  if (theme === "dark") {
+    document.documentElement.setAttribute("data-theme", "dark");
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+  const btn = $("themeToggleBtn");
+  if (btn) btn.setAttribute("aria-label", theme === "dark" ? "Auf Light-Mode wechseln" : "Auf Dark-Mode wechseln");
+}
+function getInitialTheme() {
+  try {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === "light" || stored === "dark") return stored;
+  } catch {}
+  // Auto-Detect: System-Dark-Mode-Praeferenz respektieren, sonst Light als Default
+  if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) return "dark";
+  return "light";
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  const next = current === "dark" ? "light" : "dark";
+  applyTheme(next);
+  try { localStorage.setItem(THEME_KEY, next); } catch {}
+}
+applyTheme(getInitialTheme());
+
+// =====================================================================
+// MOBILE-DRAWER (Sidebar zusammenklappen)
+// =====================================================================
+function isMobile() { return window.matchMedia("(max-width: 880px)").matches; }
+function setSidebarCollapsed(collapsed) {
+  const sb = $("sidebar");
+  if (!sb) return;
+  sb.classList.toggle("collapsed", collapsed);
+  const btn = $("menuToggleBtn");
+  if (btn) btn.setAttribute("aria-expanded", String(!collapsed));
+}
+function toggleSidebar() {
+  const sb = $("sidebar");
+  if (!sb) return;
+  setSidebarCollapsed(!sb.classList.contains("collapsed"));
+}
+// Initial: auf Mobile eingeklappt starten
+if (isMobile()) setSidebarCollapsed(true);
+window.addEventListener("resize", () => {
+  // Auf Desktop nie collapsed lassen
+  if (!isMobile()) setSidebarCollapsed(false);
+});
+
+// =====================================================================
+// TASTATURKUERZEL (global)
+// =====================================================================
+function isTypingTarget(el) {
+  if (!el) return false;
+  const tag = el.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  if (el.isContentEditable) return true;
+  return false;
+}
+function openShortcutModal() {
+  const ov = $("shortcutOverlay");
+  if (!ov) return;
+  ov.classList.add("open");
+  ov.setAttribute("aria-hidden", "false");
+}
+function closeShortcutModal() {
+  const ov = $("shortcutOverlay");
+  if (!ov) return;
+  ov.classList.remove("open");
+  ov.setAttribute("aria-hidden", "true");
+}
+function isShortcutModalOpen() {
+  const ov = $("shortcutOverlay");
+  return !!ov && ov.classList.contains("open");
+}
+
+document.addEventListener("keydown", (e) => {
+  // Cmd/Ctrl+Enter: Antwort absenden (auch aus Textarea heraus erlaubt)
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+    if (currentQuestion?.mode !== "mc" && $("answerBlock") && $("answerBlock").style.display !== "none") {
+      e.preventDefault();
+      submitAnswer();
+    }
+    return;
+  }
+
+  // ESC: Modal schliessen
+  if (e.key === "Escape") {
+    if (isShortcutModalOpen()) {
+      e.preventDefault();
+      closeShortcutModal();
+    } else if (isNameModalOpen()) {
+      // Namens-Modal nicht per ESC schliessbar — Auswahl ist obligatorisch.
+      e.preventDefault();
+    }
+    return;
+  }
+
+  // Modifier-Tasten ignorieren (ausser Shift fuer "?")
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+  // Wenn ein Eingabefeld fokussiert ist: keine Single-Key-Shortcuts
+  if (isTypingTarget(document.activeElement)) return;
+
+  // ? oeffnet Hilfe-Modal (Shift+/ auf US-Layout, einfach "?" reicht)
+  if (e.key === "?") {
+    e.preventDefault();
+    if (isShortcutModalOpen()) closeShortcutModal();
+    else openShortcutModal();
+    return;
+  }
+
+  // Wenn Modal offen ist, weitere Shortcuts blockieren
+  if (isShortcutModalOpen()) return;
+
+  const key = e.key.toLowerCase();
+
+  // t: Theme wechseln
+  if (key === "t") {
+    e.preventDefault();
+    toggleTheme();
+    try { localStorage.setItem(THEME_KEY, document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light"); } catch {}
+    return;
+  }
+
+  // 1-9: Lehrziel-Schnellauswahl
+  if (/^[1-9]$/.test(e.key)) {
+    const idx = parseInt(e.key, 10) - 1;
+    if (LEHRZIELE[idx]) {
+      e.preventDefault();
+      selectTopic(LEHRZIELE[idx]);
+      if (isMobile()) setSidebarCollapsed(true);
+    }
+    return;
+  }
+
+  // n / h / m: nur sinnvoll mit aktivem Lehrziel
+  if (key === "n") {
+    if (currentTopic && !$("newQuestionBtn").disabled) {
+      e.preventDefault();
+      $("newQuestionBtn").click();
+    }
+    return;
+  }
+  if (key === "h") {
+    if (currentTopic && currentQuestion && $("hintBtn") && !$("hintBtn").disabled) {
+      e.preventDefault();
+      $("hintBtn").click();
+    }
+    return;
+  }
+  if (key === "m") {
+    if (currentTopic && currentQuestion && $("solutionBtn") && !$("solutionBtn").disabled) {
+      e.preventDefault();
+      $("solutionBtn").click();
+    }
+    return;
+  }
+});
+
+// =====================================================================
+// FEATURE 1: CSV-EXPORT DES LERNFORTSCHRITTS
+// =====================================================================
+function csvEscape(value) {
+  const s = String(value ?? "");
+  if (s.includes(";") || s.includes('"') || s.includes("\n")) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function exportProgressCsv() {
+  const header = ["Nr", "Titel", "Richtig", "Teilweise", "Falsch", "Letzte"];
+  const lines = [header.join(";")];
+  for (const lz of LEHRZIELE) {
+    const p = progress[lz.nr] || { good: 0, partial: 0, bad: 0, last: "" };
+    const row = [
+      lz.nr,
+      csvEscape(lz.titel),
+      p.good || 0,
+      p.partial || 0,
+      p.bad || 0,
+      csvEscape(p.last || "")
+    ];
+    lines.push(row.join(";"));
+  }
+  // BOM, damit Excel UTF-8 erkennt
+  const csv = "﻿" + lines.join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const dd = String(today.getDate()).padStart(2, "0");
+  const filename = `finanzsystem-fortschritt-${yyyy}-${mm}-${dd}.csv`;
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// =====================================================================
+// FEATURE 3: SPACED-REPETITION (gewichtete Auswahl)
+// =====================================================================
+function topicWeight(nr) {
+  const p = progress[nr];
+  if (!p || !p.last) return 1.5; // nie versucht: leicht bevorzugt
+  if (p.last === "bad") return 4;
+  if (p.last === "partial") return 2;
+  if (p.last === "good") return 0.5;
+  return 1;
+}
+
+function weightedPickN(items, weights, n) {
+  const pool = items.map((it, i) => ({ it, w: weights[i] }));
+  const out = [];
+  for (let k = 0; k < n && pool.length > 0; k++) {
+    const total = pool.reduce((s, p) => s + p.w, 0);
+    let r = Math.random() * total;
+    let idx = 0;
+    for (; idx < pool.length; idx++) {
+      r -= pool[idx].w;
+      if (r <= 0) break;
+    }
+    if (idx >= pool.length) idx = pool.length - 1;
+    out.push(pool[idx].it);
+    pool.splice(idx, 1);
+  }
+  return out;
+}
+
+// =====================================================================
+// FEATURE 2: QUIZ-MODUS (5 zufaellige Fragen)
+// =====================================================================
+async function startQuiz() {
+  if (!ensureModel()) return;
+  if (quiz.active) {
+    if (!confirm("Laufendes Quiz abbrechen und neu starten?")) return;
+  }
+  // Auswahl: gewichtet nach Spaced-Repetition
+  const weights = LEHRZIELE.map(lz => topicWeight(lz.nr));
+  const count = Math.min(5, LEHRZIELE.length);
+  const picked = weightedPickN(LEHRZIELE, weights, count);
+
+  quiz = { active: true, questions: picked, currentIdx: 0, results: [] };
+  currentTopic = null;
+  currentQuestion = null;
+
+  // UI: Hauptbereich umschalten
+  $("welcomeCard").style.display = "none";
+  $("topicView").style.display = "none";
+  $("quizView").style.display = "block";
+  renderTopicList();
+  await loadQuizQuestion();
+}
+
+async function loadQuizQuestion() {
+  const lz = quiz.questions[quiz.currentIdx];
+  const view = $("quizView");
+  view.innerHTML = `
+    <div class="card">
+      <h3>Quiz · Frage ${quiz.currentIdx + 1} / ${quiz.questions.length}</h3>
+      <div class="hint">Lehrziel ${lz.nr}: ${escapeHtml(lz.titel)}</div>
+      <div id="quizQuestionContainer" style="margin-top:12px;">
+        <div class="empty-hint loading-line"><span class="spinner"></span>KI denkt nach…</div>
+      </div>
+      <div id="quizAnswerBlock" style="display:none; margin-top:16px;">
+        <label>Ihre Antwort</label>
+        <textarea id="quizAnswerInput" placeholder="Schreiben Sie Ihre Antwort in eigenen Worten…"></textarea>
+        <div class="row" style="margin-top:8px;">
+          <button id="quizSubmitBtn">Antwort pruefen</button>
+          <button class="ghost" id="quizCancelBtn">Quiz abbrechen</button>
+        </div>
+      </div>
+      <div id="quizFeedbackContainer"></div>
+    </div>
+  `;
+  $("quizCancelBtn") && ($("quizCancelBtn").onclick = () => {
+    if (confirm("Quiz wirklich abbrechen?")) endQuizUi();
+  });
+
+  // KI-Frage generieren (analog zu generateQuestion, Modus generate, Schwierigkeit mittel)
+  const difficulty = "mittel";
+  const difficultySpec = "Frage nach einem Zusammenhang oder einer Wirkung.";
+  const messages = [
+    { role: "system", content: "Du bist eine Schweizer Wirtschaftslehrerin. Du formulierst eine einzige praezise Pruefungsfrage in deutscher Sprache (kein \"ß\"), ohne Vor- oder Nachtext, ohne Auflistung. Die Frage soll das angegebene Lernziel auf dem angegebenen Schwierigkeitsgrad pruefen. Die Frage soll mindestens einen Fachbegriff aus den Schluesselbegriffen voraussetzen, ohne ihn in der Frage selbst zu nennen. Sie darf NICHT mit Ja/Nein beantwortbar sein." },
+    { role: "user", content:
+`LERNZIEL: ${lz.titel}
+UNTERZIELE:
+${lz.unterziele.map(u => "- " + u).join("\n")}
+SCHLUESSELBEGRIFFE: ${lz.stichworte.join(", ")}
+SCHWIERIGKEIT: ${difficulty}
+SPEZIFIKATION FUER DIESE SCHWIERIGKEIT: ${difficultySpec}
+
+Formuliere genau EINE Frage in deutscher Sprache, die einen Schueler zur freien Antwort anregt. Keine Multiple-Choice, keine Ja/Nein-Frage. Antworte NUR mit der Frage selbst.` }
+  ];
+
+  try {
+    const q = await chat(messages, { temperature: 0.8, max_tokens: 200 });
+    const text = q.trim().replace(/^["„"']+|["""']+$/g, "");
+    quiz.questions[quiz.currentIdx]._frage = text;
+    $("quizQuestionContainer").innerHTML = `<div class="question-box">${escapeHtml(text).replace(/\n/g, "<br>")}</div>`;
+    $("quizAnswerBlock").style.display = "block";
+    const submitBtn = $("quizSubmitBtn");
+    submitBtn.onclick = submitQuizAnswer;
+    $("quizAnswerInput").focus();
+  } catch (e) {
+    $("quizQuestionContainer").innerHTML = `<div class="feedback bad"><h4>Fehler</h4><p>${escapeHtml(e.message)}</p></div>`;
+  }
+}
+
+async function submitQuizAnswer() {
+  const lz = quiz.questions[quiz.currentIdx];
+  const ans = $("quizAnswerInput").value.trim();
+  if (!ans) return;
+
+  $("quizSubmitBtn").disabled = true;
+  $("quizFeedbackContainer").innerHTML = `<div class="empty-hint loading-line"><span class="spinner"></span>KI prueft Ihre Antwort…</div>`;
+
+  const messages = [
+    { role: "system", content:
+`Du bist eine strenge, aber faire Wirtschaftslehrerin in der Schweiz. Du bewertest die Antwort eines Schuelers auf inhaltliche Korrektheit UND fachliche Praezision, NICHT auf Wortlaut. Gib eine ehrliche, lehrreiche Rueckmeldung in deutscher Sprache (kein "ß").
+
+Antworte AUSSCHLIESSLICH mit gueltigem JSON in genau diesem Format (keine Erklaerung davor oder danach):
+{
+  "bewertung": "richtig" | "teilweise" | "falsch",
+  "begruendung": "2-4 Saetze: konkret, lehrreich.",
+  "fehlende_punkte": ["Punkt 1", "Punkt 2"],
+  "musterloesung": "Eine ideale, knappe Musterantwort in 2-4 Saetzen.",
+  "ist_zu_vage": true | false
+}
+
+Bewertungs-Kriterien (streng anwenden):
+- "richtig": NUR DANN, wenn (a) die Antwort die zentralen Fachbegriffe verwendet ODER ihre Bedeutung praezise umschreibt, UND (b) keinen Punkt der Unterziele klar verfehlt, UND (c) inhaltlich keine Fehler enthaelt.
+- "teilweise": Die Antwort ist sinngemaess in die richtige Richtung, aber es fehlen wichtige Punkte ODER sie ist zu vage formuliert ODER ihr fehlt die Wirkungskette.
+- "falsch": Die Antwort enthaelt klar falsche Aussagen oder verfehlt das Lernziel.` },
+    { role: "user", content:
+`LERNZIEL: ${lz.titel}
+UNTERZIELE DES LERNZIELS:
+${lz.unterziele.map(u => "- " + u).join("\n")}
+ERWARTETE SCHLUESSELBEGRIFFE (Indikatoren): ${lz.stichworte.join(", ")}
+
+GESTELLTE FRAGE:
+${lz._frage}
+
+ANTWORT DES SCHUELERS:
+${ans}
+
+Bewerte die Antwort. Antworte nur mit JSON.` }
+  ];
+
+  try {
+    const raw = await chat(messages, { temperature: 0.2, max_tokens: 700, response_format: { type: "json_object" } });
+    const data = parseJsonLoose(raw);
+    if (!data || !data.bewertung) throw new Error("Antwort des Modells konnte nicht interpretiert werden.");
+    const kind = data.bewertung === "richtig" ? "good" : data.bewertung === "teilweise" ? "partial" : "bad";
+    // Quiz-Resultate zaehlen IN den Fortschritt
+    recordResult(lz.nr, kind);
+    quiz.results.push({
+      topic: lz,
+      frage: lz._frage,
+      antwort: ans,
+      bewertung: data.bewertung,
+      begruendung: data.begruendung || "",
+      musterloesung: data.musterloesung || ""
+    });
+
+    const label = data.bewertung === "richtig" ? "Richtig" : data.bewertung === "teilweise" ? "Teilweise" : "Falsch";
+    const isLast = quiz.currentIdx === quiz.questions.length - 1;
+    const nextBtnHtml = isLast
+      ? `<button id="quizFinishBtn">Quiz beenden</button>`
+      : `<button id="quizNextBtn">Naechste Frage</button>`;
+    $("quizFeedbackContainer").innerHTML = `
+      <div class="feedback ${kind}" style="margin-top:12px;">
+        <h4><span class="badge ${kind}">${label}</span></h4>
+        <p>${escapeHtml(data.begruendung || "")}</p>
+        <details><summary>Musterloesung anzeigen</summary><p>${escapeHtml(data.musterloesung || "—")}</p></details>
+        <div class="row" style="margin-top:12px;">${nextBtnHtml}</div>
+      </div>
+    `;
+    if (isLast) {
+      $("quizFinishBtn").onclick = renderQuizResults;
+    } else {
+      $("quizNextBtn").onclick = () => {
+        quiz.currentIdx++;
+        loadQuizQuestion();
+      };
+    }
+  } catch (e) {
+    $("quizFeedbackContainer").innerHTML = `<div class="feedback bad"><h4>Fehler</h4><p>${escapeHtml(e.message)}</p></div>`;
+    $("quizSubmitBtn").disabled = false;
+  }
+}
+
+function renderQuizResults() {
+  const good = quiz.results.filter(r => r.bewertung === "richtig").length;
+  const partial = quiz.results.filter(r => r.bewertung === "teilweise").length;
+  const bad = quiz.results.filter(r => r.bewertung === "falsch").length;
+
+  const rows = quiz.results.map((r, i) => {
+    const k = r.bewertung === "richtig" ? "good" : r.bewertung === "teilweise" ? "partial" : "bad";
+    const label = r.bewertung === "richtig" ? "Richtig" : r.bewertung === "teilweise" ? "Teilweise" : "Falsch";
+    return `<tr>
+      <td style="padding:6px 8px; vertical-align:top;">${i + 1}.</td>
+      <td style="padding:6px 8px; vertical-align:top;">${escapeHtml(r.topic.nr + ". " + r.topic.titel)}</td>
+      <td style="padding:6px 8px; vertical-align:top;"><span class="badge ${k}">${label}</span></td>
+    </tr>`;
+  }).join("");
+
+  $("quizView").innerHTML = `
+    <div class="card">
+      <h3>Quiz beendet</h3>
+      <div class="row" style="gap:24px; margin:8px 0 16px 0;">
+        <div><span class="badge good">Richtig</span> ${good}</div>
+        <div><span class="badge partial">Teilweise</span> ${partial}</div>
+        <div><span class="badge bad">Falsch</span> ${bad}</div>
+      </div>
+      <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <thead><tr style="text-align:left; color:var(--muted);">
+          <th style="padding:6px 8px;">#</th>
+          <th style="padding:6px 8px;">Lehrziel</th>
+          <th style="padding:6px 8px;">Bewertung</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="row" style="margin-top:16px;">
+        <button id="quizCloseBtn">Schliessen</button>
+      </div>
+    </div>
+  `;
+  $("quizCloseBtn").onclick = endQuizUi;
+}
+
+function endQuizUi() {
+  quiz = { active: false, questions: [], currentIdx: 0, results: [] };
+  $("quizView").style.display = "none";
+  $("quizView").innerHTML = "";
+  if (currentTopic) {
+    $("topicView").style.display = "block";
+  } else {
+    $("welcomeCard").style.display = "block";
+  }
+  renderTopicList();
+}
+
+// =====================================================================
+// FEATURE 4: LEHRZIELE AUS EXTERNER JSON (mit Validierung + Fallback)
+// =====================================================================
+function isValidLehrzielArray(data) {
+  if (!Array.isArray(data) || data.length < 1) return false;
+  for (const lz of data) {
+    if (!lz || typeof lz !== "object") return false;
+    if (typeof lz.nr !== "number") return false;
+    if (typeof lz.titel !== "string" || !lz.titel) return false;
+    if (!Array.isArray(lz.unterziele)) return false;
+    if (!Array.isArray(lz.stichworte)) return false;
+  }
+  return true;
+}
+
+async function tryLoadExternalLehrziele() {
+  try {
+    const res = await fetch("./lehrziele.json");
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!isValidLehrzielArray(data)) {
+      console.warn("lehrziele.json: ungueltiges Schema, Fallback auf Inline-Liste.");
+      return null;
+    }
+    return data;
+  } catch (e) {
+    // Stillschweigender Fallback (z.B. file:// oder Datei nicht vorhanden)
+    return null;
+  }
+}
+
+// =====================================================================
+// CLOUD-SYNC (Netlify Blobs via /api/progress)
+// =====================================================================
+// Lokal-Fallback: Wenn die Seite nicht ueber Netlify ausgeliefert wird
+// (z.B. via `python3 start.py`), schlaegt der fetch fehl. setSyncStatus()
+// zeigt dann "offline" — keine Endlosschleife, keine Crash-Modale.
+
+function setSyncStatus(state /* "ok"|"offline"|"syncing"|"" */, message) {
+  const el = $("syncStatus");
+  if (!el) return;
+  el.classList.remove("ok", "offline", "syncing");
+  if (state) el.classList.add(state);
+  el.textContent = message || "";
+  el.style.display = message ? "" : "none";
+}
+
+function refreshLoginBar() {
+  const bar = $("loginBar");
+  const nameEl = $("loginName");
+  if (!bar || !nameEl) return;
+  const name = getCurrentUsername();
+  if (!name) {
+    bar.style.display = "none";
+    return;
+  }
+  bar.style.display = "";
+  nameEl.textContent = name === "__anonym__" ? "anonym" : name;
+}
+
+async function pullCloudProgress() {
+  const name = getCurrentUsername();
+  if (!name || name === "__anonym__") return;
+  setSyncStatus("syncing", "Lade Fortschritt aus der Cloud…");
+  try {
+    const res = await fetch(`/api/progress?name=${encodeURIComponent(name)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.progress && Object.keys(data.progress).length > 0) {
+      // Cloud > lokaler Cache (last-write-wins per updatedAt waere besser, aber simple first)
+      progress = data.progress;
+      saveProgressLocal(progress);
+      renderTopicList();
+      renderProgressStats();
+      const stamp = data.updatedAt ? new Date(data.updatedAt).toLocaleString("de-CH") : "";
+      setSyncStatus("ok", stamp ? `Mit Cloud synchronisiert (${stamp})` : "Mit Cloud synchronisiert.");
+    } else {
+      setSyncStatus("ok", "Mit Cloud verbunden – noch kein Fortschritt gespeichert.");
+    }
+  } catch (e) {
+    setSyncStatus("offline", "Cloud nicht erreichbar – arbeite lokal weiter.");
+    console.warn("[Cloud-Sync] Pull fehlgeschlagen:", e);
+  }
+}
+
+let pushTimer = null;
+function schedulePush() {
+  const name = getCurrentUsername();
+  if (!name || name === "__anonym__") return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(async () => {
+    setSyncStatus("syncing", "Synchronisiere…");
+    try {
+      const res = await fetch(`/api/progress?name=${encodeURIComponent(name)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ progress }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const stamp = data.updatedAt ? new Date(data.updatedAt).toLocaleTimeString("de-CH") : "";
+      setSyncStatus("ok", stamp ? `Synchronisiert ${stamp}` : "Synchronisiert.");
+    } catch (e) {
+      setSyncStatus("offline", "Sync fehlgeschlagen – wird später wiederholt.");
+      console.warn("[Cloud-Sync] Push fehlgeschlagen:", e);
+    }
+  }, 1500);
+}
+
+// =====================================================================
+// NAMENS-MODAL (Cloud-Sync-Identifikation beim Start)
+// =====================================================================
+function isNameModalOpen() {
+  const ov = $("nameOverlay");
+  return !!ov && ov.classList.contains("open");
+}
+
+function openNameModal() {
+  const ov = $("nameOverlay");
+  if (!ov) return;
+  ov.classList.add("open");
+  ov.setAttribute("aria-hidden", "false");
+  const input = $("nameInput");
+  if (input) {
+    input.value = "";
+    setTimeout(() => input.focus(), 50);
+  }
+  updateNameSubmitState();
+}
+
+function closeNameModal() {
+  const ov = $("nameOverlay");
+  if (!ov) return;
+  ov.classList.remove("open");
+  ov.setAttribute("aria-hidden", "true");
+}
+
+function updateNameSubmitState() {
+  const input = $("nameInput");
+  const btn = $("nameSubmitBtn");
+  if (!input || !btn) return;
+  // Mindestens 2 sinnvolle Zeichen (gleiche Heuristik wie nameToKey serverseitig)
+  const trimmed = (input.value || "").trim();
+  btn.disabled = trimmed.length < 2;
+}
+
+async function handleNameSubmit() {
+  const input = $("nameInput");
+  if (!input) return;
+  const name = (input.value || "").trim();
+  if (name.length < 2) return;
+  try { localStorage.setItem(USERNAME_KEY, name); } catch {}
+  closeNameModal();
+  // Lokalen Cache fuer diesen Namen laden, dann mit Cloud abgleichen.
+  progress = loadProgressLocal();
+  renderTopicList();
+  renderProgressStats();
+  refreshLoginBar();
+  await pullCloudProgress();
+}
+
+function handleAnonym() {
+  try { localStorage.setItem(USERNAME_KEY, "__anonym__"); } catch {}
+  closeNameModal();
+  progress = loadProgressLocal();
+  renderTopicList();
+  renderProgressStats();
+  refreshLoginBar();
+  setSyncStatus("", "");
+}
+
+function handleLogout() {
+  try { localStorage.removeItem(USERNAME_KEY); } catch {}
+  // Reload — dann erscheint das Modal wieder.
+  location.reload();
+}
+
+// =====================================================================
+// INIT
+// =====================================================================
+async function boot() {
+  checkWebGPU();
+  // Versuche externe Lehrziele zu laden, sonst Inline-Liste behalten
+  const external = await tryLoadExternalLehrziele();
+  if (external) {
+    LEHRZIELE = external;
+    const hint = $("lehrzieleSourceHint");
+    if (hint) hint.style.display = "block";
+  }
+  // Progress fuer aktuellen Namen aus localStorage laden (kann sich von
+  // dem Default-Load am Datei-Anfang unterscheiden, falls ein Name gesetzt ist).
+  progress = loadProgressLocal();
+  renderTopicList();
+  renderProgressStats();
+  refreshLoginBar();
+  setStatus('Modell noch nicht geladen. Klicken Sie auf „Modell laden".');
+
+  // Cloud-Sync: Wenn Name gesetzt und nicht anonym -> Pull. Sonst Modal.
+  const username = getCurrentUsername();
+  if (!username) {
+    openNameModal();
+  } else if (username !== "__anonym__") {
+    pullCloudProgress();
+  }
+}
+
+// Event-Bindings fuer neue Features
+$("exportCsvBtn").onclick = exportProgressCsv;
+$("startQuizBtn").onclick = startQuiz;
+
+// Theme-Toggle / Mobile-Drawer / Shortcut-Modal
+$("themeToggleBtn") && ($("themeToggleBtn").onclick = () => {
+  toggleTheme();
+  try { localStorage.setItem(THEME_KEY, document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark"); } catch {}
+});
+$("menuToggleBtn") && ($("menuToggleBtn").onclick = toggleSidebar);
+$("shortcutCloseBtn") && ($("shortcutCloseBtn").onclick = closeShortcutModal);
+$("shortcutOverlay") && ($("shortcutOverlay").addEventListener("click", (e) => {
+  // Klick auf Overlay (nicht auf das Modal selbst) schliesst
+  if (e.target.id === "shortcutOverlay") closeShortcutModal();
+}));
+
+// Cloud-Sync: Namens-Modal & Logout
+$("nameInput") && ($("nameInput").addEventListener("input", updateNameSubmitState));
+$("nameInput") && ($("nameInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    if (!$("nameSubmitBtn").disabled) handleNameSubmit();
+  }
+}));
+$("nameSubmitBtn") && ($("nameSubmitBtn").onclick = handleNameSubmit);
+$("nameAnonymBtn") && ($("nameAnonymBtn").onclick = handleAnonym);
+$("logoutBtn") && ($("logoutBtn").onclick = handleLogout);
+
+// Auf Mobile: nach Topic-Wahl per Klick die Sidebar einklappen (UX)
+const _origSelectTopic = selectTopic;
+selectTopic = function(lz) {
+  _origSelectTopic(lz);
+  if (isMobile()) setSidebarCollapsed(true);
+};
+
+boot();
+</script>
+</body>
+</html>

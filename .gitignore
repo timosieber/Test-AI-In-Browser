@@ -1,0 +1,22 @@
+# Lokale Python-Caches
+__pycache__/
+*.py[cod]
+
+# Node / npm
+node_modules/
+package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Backup-Datei vom Refactoring
+finanzsystem-trainer.backup.html
+
+# Lokale Lehrziele-Override (sollen User-spezifisch bleiben, nicht ins Repo)
+# Wenn DU willst dass lehrziele.json mit deployed wird, diese Zeile entfernen.
+# lehrziele.json

@@ -1,0 +1,67 @@
+# Netlify-Deployment-Konfiguration fuer den Finanzsystem-Trainer.
+#
+# Voraussetzungen:
+# - Netlify-Account (kostenlos reicht).
+# - GitHub/GitLab-Repository mit dieser Datei + finanzsystem-trainer.html
+#   (+ optional lehrziele.json) im Root.
+#
+# Einrichtung:
+# 1. Auf netlify.com: "Add new site" -> "Import an existing project".
+# 2. Repository auswaehlen.
+# 3. Build command: leer lassen.
+# 4. Publish directory: "." (Root).
+# 5. Deploy.
+#
+# WICHTIG: Auch bei Hosting auf Netlify laeuft das KI-Modell weiterhin
+# vollstaendig im Browser des Schuelers (WebLLM via WebGPU). Netlify
+# liefert nur die statische HTML/JSON aus. Es werden keine Eingaben
+# der Schueler an einen Server gesendet.
+
+[build]
+  publish = "."
+  command = ""
+
+# Netlify Functions: Cloud-Sync fuer den Lernfortschritt.
+# Die Function unter netlify/functions/progress.js stellt /api/progress
+# bereit (siehe `export const config = { path: "/api/progress" }` dort).
+# esbuild ist der schnelle Standard-Bundler fuer Modern-Runtime-Functions.
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Wichtige Header fuer WebLLM:
+#   - WebGPU benoetigt einen "secure context" (HTTPS) — Netlify macht
+#     HTTPS automatisch.
+#   - Cross-Origin-Isolation ist NICHT noetig fuer WebLLM (anders als
+#     bei einigen anderen WebGPU-/Wasm-Setups).
+#   - WASM-Streaming-Compile braucht die richtige MIME-Type-Aushandlung
+#     fuer .wasm — das macht Netlify out-of-the-box.
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Verhindere Embedding der Seite in fremde Frames.
+    X-Frame-Options = "DENY"
+    # Browser sollen keine Hypothesen ueber Content-Type machen.
+    X-Content-Type-Options = "nosniff"
+    # Referrer nur an gleiche Origin senden.
+    Referrer-Policy = "same-origin"
+    # Erlaube WebGPU explizit.
+    Permissions-Policy = "publickey-credentials-get=(), camera=(), microphone=(), geolocation=()"
+
+[[headers]]
+  for = "/*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+# Standard-Einstiegsseite: Wenn jemand /  besucht, zeige direkt das Tool.
+[[redirects]]
+  from = "/"
+  to = "/finanzsystem-trainer.html"
+  status = 200
