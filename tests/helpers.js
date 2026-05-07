@@ -15,14 +15,34 @@ export function escapeHtml(s) {
 }
 
 export function parseJsonLoose(s) {
+  if (typeof s !== "string" || !s) return null;
   try {
     return JSON.parse(s);
   } catch {}
-  const m = s.match(/\{[\s\S]*\}/);
-  if (m) {
-    try {
-      return JSON.parse(m[0]);
-    } catch {}
+  // Sucht das erste vollstaendige JSON-Objekt im Text. Zaehlt Klammern mit
+  // String- und Escape-Behandlung, damit ein "}" in einem String-Wert nicht
+  // das Match vorzeitig schliesst. Bricht ab, sobald ein ausgewogenes Paar
+  // gefunden ist – im Gegensatz zum frueheren greedy Regex, der bei zwei
+  // JSON-Objekten alles dazwischen geschluckt hat.
+  const start = s.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0, inString = false, escape = false;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (escape) { escape = false; continue; }
+    if (inString) {
+      if (c === "\\") escape = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') { inString = true; continue; }
+    if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) {
+        try { return JSON.parse(s.slice(start, i + 1)); } catch { return null; }
+      }
+    }
   }
   return null;
 }

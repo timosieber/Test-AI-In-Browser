@@ -1431,6 +1431,9 @@ async function chat(messages, opts = {}) {
   // Stream-Modus: per Default an, weil dadurch die UI live mitschreiben kann
   // und die gefuehlte Latenz drastisch sinkt. opts.onChunk(buffer, delta) wird pro
   // Token aufgerufen. Ohne onChunk verhaelt sich chat() wie vorher (sammelt alles).
+  // Nach dem Aufruf liegt der finish_reason auf chat.lastFinishReason; bei "length"
+  // hat das Modell das Token-Limit gerissen und der Text ist abgeschnitten.
+  chat.lastFinishReason = null;
   const stream = await engine.chat.completions.create({
     messages,
     temperature: opts.temperature ?? 0.4,
@@ -1438,12 +1441,19 @@ async function chat(messages, opts = {}) {
     stream: true,
   });
   let buffer = "";
+  let finishReason = null;
   for await (const chunk of stream) {
-    const delta = chunk.choices?.[0]?.delta?.content || "";
+    const choice = chunk.choices?.[0];
+    const delta = choice?.delta?.content || "";
     if (delta) {
       buffer += delta;
       if (opts.onChunk) opts.onChunk(buffer, delta);
     }
+    if (choice?.finish_reason) finishReason = choice.finish_reason;
+  }
+  chat.lastFinishReason = finishReason;
+  if (finishReason && finishReason !== "stop") {
+    console.warn(`[chat] finish_reason="${finishReason}" – Output evtl. abgeschnitten. max_tokens=${opts.max_tokens ?? 512}, length=${buffer.length}`);
   }
   return buffer;
 }
@@ -1650,10 +1660,11 @@ SCHÜLER-ANTWORT: ${ans}
 Bewerte. Nur JSON.` }
   ];
 
+  let raw = "";
   try {
-    const raw = await chat(messages, {
+    raw = await chat(messages, {
       temperature: 0.2,
-      max_tokens: 450,
+      max_tokens: 800,
       onChunk: (buf) => {
         const el = $("evalProgress");
         if (el) el.textContent = `(${buf.length} Zeichen)`;
@@ -1665,7 +1676,11 @@ Bewerte. Nur JSON.` }
     const kind = data.bewertung === "richtig" ? "good" : data.bewertung === "teilweise" ? "partial" : "bad";
     recordResult(lz.nr, kind);
   } catch (e) {
-    $("feedbackContainer").innerHTML = `<div class="feedback bad"><h4>Fehler</h4><p>${escapeHtml(e.message)}</p><p>Versuchen Sie „Antwort prüfen" erneut oder wechseln Sie das Modell.</p></div>`;
+    console.error("[submitAnswer] Fehler:", e, "\nfinish_reason:", chat.lastFinishReason, "\nraw:", raw);
+    const truncatedHint = chat.lastFinishReason === "length"
+      ? `<p style="color:var(--warn)"><strong>⚠ Modell-Output wurde abgeschnitten</strong> (Token-Limit erreicht). Erneut versuchen oder kürzere Antwort geben.</p>`
+      : "";
+    $("feedbackContainer").innerHTML = `<div class="feedback bad"><h4>Fehler</h4><p>${escapeHtml(e.message)}</p>${truncatedHint}<p>Versuchen Sie „Antwort prüfen" erneut oder wechseln Sie das Modell.</p></div>`;
   } finally {
     setBusy(false);
   }
@@ -1749,11 +1764,32 @@ async function showSolution() {
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 
 function parseJsonLoose(s) {
+  if (typeof s !== "string" || !s) return null;
   try { return JSON.parse(s); } catch {}
-  // Versuche, JSON aus dem Text zu extrahieren
-  const m = s.match(/\{[\s\S]*\}/);
-  if (m) {
-    try { return JSON.parse(m[0]); } catch {}
+  // Sucht das erste vollstaendige JSON-Objekt im Text. Zaehlt Klammern mit
+  // String- und Escape-Behandlung, damit ein "}" innerhalb eines String-
+  // Werts nicht das Match vorzeitig schliesst. Bricht ab, sobald ein
+  // ausgewogenes Paar gefunden ist – im Gegensatz zum frueheren greedy
+  // Regex, der bei zwei JSON-Objekten alles dazwischen geschluckt hat.
+  const start = s.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0, inString = false, escape = false;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (escape) { escape = false; continue; }
+    if (inString) {
+      if (c === "\\") escape = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') { inString = true; continue; }
+    if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) {
+        try { return JSON.parse(s.slice(start, i + 1)); } catch { return null; }
+      }
+    }
   }
   return null;
 }
@@ -2139,17 +2175,21 @@ SCHUELER-ANTWORT: ${ans}
 Bewerte. Nur JSON.` }
   ];
 
+  let raw = "";
   try {
-    const raw = await chat(messages, {
+    raw = await chat(messages, {
       temperature: 0.2,
-      max_tokens: 400,
+      max_tokens: 800,
       onChunk: (buf) => {
         const el = $("quizEvalProgress");
         if (el) el.textContent = `(${buf.length} Zeichen)`;
       }
     });
     const data = parseJsonLoose(raw);
-    if (!data || !data.bewertung) throw new Error("Antwort des Modells konnte nicht interpretiert werden.");
+    if (!data || !data.bewertung) {
+      console.error("[submitQuizAnswer] Parse fail. finish_reason:", chat.lastFinishReason, "\nraw:", raw);
+      throw new Error("Antwort des Modells konnte nicht interpretiert werden.");
+    }
     const kind = data.bewertung === "richtig" ? "good" : data.bewertung === "teilweise" ? "partial" : "bad";
     // Quiz-Resultate zaehlen IN den Fortschritt
     recordResult(lz.nr, kind);

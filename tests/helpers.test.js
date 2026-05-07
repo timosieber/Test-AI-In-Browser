@@ -74,19 +74,39 @@ describe("parseJsonLoose", () => {
     expect(parseJsonLoose("")).toBeNull();
   });
 
-  it("greift bei zwei JSON-Objekten im Text das groesstmoegliche Match (greedy) zwischen erstem `{` und letztem `}`", () => {
-    // Aktuelles Verhalten: der Regex /\{[\s\S]*\}/ ist greedy und matcht vom
-    // ersten `{` bis zum letzten `}`. Stehen zwei valide JSON-Objekte im Text,
-    // wird der gesamte Bereich dazwischen als ein einzelner JSON-String
-    // geparst. Da das in der Regel kein valides JSON ergibt, faellt die
-    // Funktion auf null zurueck. Dieser Test dokumentiert das Verhalten.
+  it("greift bei zwei JSON-Objekten im Text das ERSTE vollstaendige Objekt", () => {
+    // Neues Verhalten: Klammer-Balance bricht ab, sobald das erste Paar
+    // ausgewogen ist. Nachfolgende Objekte werden ignoriert. Loest das
+    // alte Greedy-Problem, bei dem zwei valide Objekte zu null fuehrten.
     const twoObjects = 'Erst {"a":1} und dann {"b":2} fertig.';
-    expect(parseJsonLoose(twoObjects)).toBeNull();
+    expect(parseJsonLoose(twoObjects)).toEqual({ a: 1 });
   });
 
   it("parst ein einzelnes JSON-Objekt auch wenn es Newlines enthaelt", () => {
     const pretty = 'Output:\n{\n  "a": 1,\n  "b": [1, 2, 3]\n}\nDanke';
     expect(parseJsonLoose(pretty)).toEqual({ a: 1, b: [1, 2, 3] });
+  });
+
+  it("laesst sich nicht von einem '}' innerhalb eines String-Werts taeuschen", () => {
+    // Ein literales "}" im String darf das Objekt nicht vorzeitig schliessen.
+    const tricky = '{"begruendung":"die Klammer } gehoert zum Text","ok":true}';
+    expect(parseJsonLoose(tricky)).toEqual({
+      begruendung: "die Klammer } gehoert zum Text",
+      ok: true,
+    });
+  });
+
+  it("gibt null zurueck, wenn das JSON unvollstaendig ist (Token-Limit-Fall)", () => {
+    // Genau dieser Fall tritt auf, wenn max_tokens zu knapp ist und das
+    // Modell mitten im JSON abbricht – darf nicht stillschweigend ein
+    // halb-geparstes Objekt liefern.
+    const truncated = '{"bewertung":"teilweise","begruendung":"der Text bricht hier ab';
+    expect(parseJsonLoose(truncated)).toBeNull();
+  });
+
+  it("ignoriert Modell-Nachgeplapper nach dem JSON", () => {
+    const withTail = '{"score":1}\n\nIch hoffe das hilft! Viel Erfolg.';
+    expect(parseJsonLoose(withTail)).toEqual({ score: 1 });
   });
 });
 
