@@ -1637,17 +1637,17 @@ async function submitAnswer() {
 
   const messages = [
     { role: "system", content:
-`Du bist eine strenge, faire Schweizer Wirtschaftslehrerin. Bewerte Schüler-Antworten auf inhaltliche Korrektheit + fachliche Präzision (nicht Wortlaut). Sprache: Deutsch, kein "ß".
+`Du bist eine strenge, faire Schweizer Wirtschaftslehrerin. Bewerte kurz und konkret. Sprache: Deutsch, kein "ß".
 
-Antworte NUR mit gültigem JSON, nichts davor/danach:
-{"bewertung":"richtig"|"teilweise"|"falsch","begruendung":"2-3 Sätze, konkret, lehrreich","fehlende_punkte":["..."],"musterloesung":"2-3 Sätze mit Fachbegriffen","ist_zu_vage":true|false}
+Antworte NUR mit gültigem JSON, KURZ, nichts davor/danach:
+{"bewertung":"richtig"|"teilweise"|"falsch","kurz":"1 Satz: was stimmt oder was fehlt","fehlt":["Stichwort1","Stichwort2"]}
 
 Regeln:
-- richtig: Fachbegriffe (oder präzise Umschreibung) + alle Unterziele abgedeckt + keine Fehler.
-- teilweise: Richtung stimmt, aber Fachbegriffe/Wirkungskette fehlen oder Punkte ausgelassen. ist_zu_vage=true wenn vage ("Geld wird teurer", "macht was mit Zinsen") statt präzise ("Refinanzierungskosten steigen, Kreditzinsen rauf, Geldmenge sinkt").
-- falsch: Klar falsche Aussagen oder Lernziel verfehlt.
+- richtig: Kernpunkte + Fachbegriffe (oder präzise Umschreibung) vorhanden. "kurz" = 1 Satz Bestätigung. "fehlt" = [].
+- teilweise: Richtung stimmt, aber Fachbegriffe/Wirkungskette/Unterziele fehlen. "kurz" nennt knapp WAS fehlt.
+- falsch: Klar falsche Aussage. "kurz" sagt knapp WARUM falsch.
 
-In begruendung: konkret nennen WAS fehlt + WARUM. Keine Floskeln wie "gut formuliert".` },
+"kurz" MAX 1 Satz, ca. 15-25 Wörter. "fehlt" MAX 3 Stichworte. KEINE Musterlösung, keine langen Erklärungen.` },
     { role: "user", content:
 `LERNZIEL: ${lz.titel}
 UNTERZIELE: ${lz.unterziele.join(" / ")}
@@ -1657,20 +1657,22 @@ FRAGE: ${currentQuestion.text}
 
 SCHÜLER-ANTWORT: ${ans}
 
-Bewerte. Nur JSON.` }
+Bewerte KURZ. Nur JSON.` }
   ];
 
   let raw = "";
   try {
     raw = await chat(messages, {
       temperature: 0.2,
-      max_tokens: 800,
+      max_tokens: 220,
       onChunk: (buf) => {
         const el = $("evalProgress");
         if (el) el.textContent = `(${buf.length} Zeichen)`;
       }
     });
-    const data = parseJsonLoose(raw);
+    let data = parseJsonLoose(raw);
+    // Fallback: JSON kaputt/abgeschnitten – versuche bewertung + kurz aus dem Roh-Text zu retten.
+    if (!data || !data.bewertung) data = salvageEvaluation(raw);
     if (!data || !data.bewertung) throw new Error("Antwort des Modells konnte nicht interpretiert werden.");
     renderFeedback(data);
     const kind = data.bewertung === "richtig" ? "good" : data.bewertung === "teilweise" ? "partial" : "bad";
@@ -1686,20 +1688,42 @@ Bewerte. Nur JSON.` }
   }
 }
 
+// Wenn parseJsonLoose scheitert (z.B. abgeschnittenes JSON wegen Token-Limit),
+// versuchen wir wenigstens die Bewertung + den ersten Satz aus dem Rohtext zu
+// extrahieren, damit der Schueler eine brauchbare Rueckmeldung bekommt.
+function salvageEvaluation(raw) {
+  if (typeof raw !== "string" || !raw) return null;
+  const bewMatch = raw.match(/"bewertung"\s*:\s*"(richtig|teilweise|falsch)"/i);
+  if (!bewMatch) return null;
+  const kurzMatch = raw.match(/"(?:kurz|begruendung)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+  const fehltMatch = raw.match(/"(?:fehlt|fehlende_punkte)"\s*:\s*\[([^\]]*)/);
+  let fehlt = [];
+  if (fehltMatch) {
+    fehlt = [...fehltMatch[1].matchAll(/"([^"\\]*(?:\\.[^"\\]*)*)"/g)].map(m => m[1]);
+  }
+  return {
+    bewertung: bewMatch[1].toLowerCase(),
+    kurz: kurzMatch ? kurzMatch[1] : "Bewertung konnte nur teilweise rekonstruiert werden.",
+    fehlt,
+  };
+}
+
 function renderFeedback(data) {
   const kind = data.bewertung === "richtig" ? "good" : data.bewertung === "teilweise" ? "partial" : "bad";
   const label = data.bewertung === "richtig" ? "Richtig" : data.bewertung === "teilweise" ? "Teilweise" : "Falsch";
-  const fehlend = Array.isArray(data.fehlende_punkte) && data.fehlende_punkte.length
-    ? `<p><strong>Fehlt / unpräzise:</strong></p><ul>${data.fehlende_punkte.map(p => `<li>${escapeHtml(p)}</li>`).join("")}</ul>`
+  const text = data.kurz || data.begruendung || "";
+  const punkte = Array.isArray(data.fehlt) && data.fehlt.length
+    ? data.fehlt
+    : (Array.isArray(data.fehlende_punkte) ? data.fehlende_punkte : []);
+  const fehlend = punkte.length
+    ? `<p><strong>Fehlt / unpräzise:</strong> ${punkte.map(p => escapeHtml(p)).join(", ")}</p>`
     : "";
-  const vage = data.ist_zu_vage ? `<p style="color:var(--warn)"><strong>⚠ Hinweis:</strong> Ihre Antwort ist sinngemäss in die richtige Richtung, aber zu vage formuliert. Werden Sie präziser mit Fachbegriffen.</p>` : "";
   $("feedbackContainer").innerHTML = `
     <div class="feedback ${kind}">
       <h4><span class="badge ${kind}">${label}</span></h4>
-      <p>${escapeHtml(data.begruendung || "")}</p>
-      ${vage}
+      <p>${escapeHtml(text)}</p>
       ${fehlend}
-      <details><summary>Musterlösung anzeigen</summary><p>${escapeHtml(data.musterloesung || "—")}</p></details>
+      <p style="margin-top:8px;font-size:13px;color:var(--text-soft);">Musterlösung? Klicken Sie auf „Musterlösung" unter der Frage.</p>
     </div>`;
 }
 
@@ -2154,15 +2178,17 @@ async function submitQuizAnswer() {
 
   const messages = [
     { role: "system", content:
-`Schweizer Wirtschaftslehrerin. Bewerte Schueler-Antwort auf inhaltliche Korrektheit (nicht Wortlaut). Deutsch, kein "ß".
+`Schweizer Wirtschaftslehrerin. Bewerte KURZ. Deutsch, kein "ß".
 
 Nur JSON, nichts davor/danach:
-{"bewertung":"richtig"|"teilweise"|"falsch","begruendung":"2-3 Saetze, konkret","fehlende_punkte":["..."],"musterloesung":"2-3 Saetze","ist_zu_vage":true|false}
+{"bewertung":"richtig"|"teilweise"|"falsch","kurz":"1 Satz: was stimmt oder was fehlt","fehlt":["Stichwort1","Stichwort2"]}
 
 Regeln:
-- richtig: Fachbegriffe oder praezise Umschreibung + alle Unterziele + keine Fehler.
-- teilweise: Richtung stimmt aber Fachbegriffe/Wirkungskette fehlen. ist_zu_vage=true wenn vage statt praezise.
-- falsch: Falsche Aussagen oder Lernziel verfehlt.` },
+- richtig: Kernpunkte + Fachbegriffe vorhanden. "fehlt"=[].
+- teilweise: Richtung stimmt, aber Fachbegriffe/Wirkungskette fehlen. "kurz" nennt knapp WAS fehlt.
+- falsch: Klar falsch. "kurz" sagt knapp WARUM.
+
+"kurz" MAX 1 Satz (15-25 Woerter). "fehlt" MAX 3 Stichworte. KEINE Musterloesung.` },
     { role: "user", content:
 `LERNZIEL: ${lz.titel}
 UNTERZIELE: ${lz.unterziele.join(" / ")}
@@ -2172,25 +2198,30 @@ FRAGE: ${lz._frage}
 
 SCHUELER-ANTWORT: ${ans}
 
-Bewerte. Nur JSON.` }
+Bewerte KURZ. Nur JSON.` }
   ];
 
   let raw = "";
   try {
     raw = await chat(messages, {
       temperature: 0.2,
-      max_tokens: 800,
+      max_tokens: 220,
       onChunk: (buf) => {
         const el = $("quizEvalProgress");
         if (el) el.textContent = `(${buf.length} Zeichen)`;
       }
     });
-    const data = parseJsonLoose(raw);
+    let data = parseJsonLoose(raw);
+    if (!data || !data.bewertung) data = salvageEvaluation(raw);
     if (!data || !data.bewertung) {
       console.error("[submitQuizAnswer] Parse fail. finish_reason:", chat.lastFinishReason, "\nraw:", raw);
       throw new Error("Antwort des Modells konnte nicht interpretiert werden.");
     }
     const kind = data.bewertung === "richtig" ? "good" : data.bewertung === "teilweise" ? "partial" : "bad";
+    const kurzText = data.kurz || data.begruendung || "";
+    const fehltArr = Array.isArray(data.fehlt) ? data.fehlt
+                   : Array.isArray(data.fehlende_punkte) ? data.fehlende_punkte
+                   : [];
     // Quiz-Resultate zaehlen IN den Fortschritt
     recordResult(lz.nr, kind);
     quiz.results.push({
@@ -2198,11 +2229,13 @@ Bewerte. Nur JSON.` }
       frage: lz._frage,
       antwort: ans,
       bewertung: data.bewertung,
-      begruendung: data.begruendung || "",
-      musterloesung: data.musterloesung || ""
+      begruendung: kurzText
     });
 
     const label = data.bewertung === "richtig" ? "Richtig" : data.bewertung === "teilweise" ? "Teilweise" : "Falsch";
+    const fehltHtml = fehltArr.length
+      ? `<p><strong>Fehlt / unpraezise:</strong> ${fehltArr.map(p => escapeHtml(p)).join(", ")}</p>`
+      : "";
     const isLast = quiz.currentIdx === quiz.questions.length - 1;
     const nextBtnHtml = isLast
       ? `<button id="quizFinishBtn">Quiz beenden</button>`
@@ -2210,8 +2243,8 @@ Bewerte. Nur JSON.` }
     $("quizFeedbackContainer").innerHTML = `
       <div class="feedback ${kind}" style="margin-top:12px;">
         <h4><span class="badge ${kind}">${label}</span></h4>
-        <p>${escapeHtml(data.begruendung || "")}</p>
-        <details><summary>Musterloesung anzeigen</summary><p>${escapeHtml(data.musterloesung || "—")}</p></details>
+        <p>${escapeHtml(kurzText)}</p>
+        ${fehltHtml}
         <div class="row" style="margin-top:12px;">${nextBtnHtml}</div>
       </div>
     `;
