@@ -1635,6 +1635,12 @@ async function submitAnswer() {
   $("feedbackContainer").innerHTML = `<div class="empty-hint loading-line"><span class="spinner"></span>KI prüft Ihre Antwort… <span id="evalProgress" style="color:var(--text-soft);font-size:12px;"></span></div>`;
   setBusy(true);
 
+  // Vorfilterung: welche Schluesselbegriffe sind bereits in der Antwort?
+  // Kleine Modelle halluzinieren sonst "fehlt: Leitzins" obwohl "Leitzins"
+  // wortwoertlich im Schueler-Text steht. Wir uebernehmen die Stichwort-
+  // Klassifikation deterministisch und uebergeben sie dem Modell.
+  const { genannt, offen } = matchStichworte(ans, lz.stichworte);
+
   const messages = [
     { role: "system", content:
 `Schweizer Wirtschaftslehrerin. Bewerte ULTRAKURZ. Deutsch, kein "ß".
@@ -1644,23 +1650,24 @@ Antworte AUSSCHLIESSLICH mit diesem JSON, sonst NICHTS:
 
 HARTE LIMITS:
 - "kurz": EIN Satz, MAX 20 Woerter. Kein Smalltalk, keine Wiederholung der Frage.
-- "fehlt": MAX 3 Stichworte (je 1-3 Woerter), oder [] wenn richtig.
-- Gesamtes JSON unter 200 Zeichen anpeilen.
+- "fehlt": MAX 3 Stichworte. NUR aus der vom System gelieferten Liste "NOCH OFFEN" waehlen. NIE Begriffe nennen, die unter "BEREITS GENANNT" stehen.
 
-Inhalt von "kurz":
-- richtig: 1 Satz Bestaetigung.
-- teilweise: 1 Satz, was fehlt.
-- falsch: 1 Satz, warum falsch.
+Bewertungsregeln (HART):
+- "falsch" NUR wenn die Aussage inhaltlich klar verkehrt ist ODER nichts mit der Frage zu tun hat. NIE "falsch" wenn mehrere Schluesselbegriffe genannt + Richtung passt.
+- "teilweise" wenn Richtung stimmt, aber Wirkungskette/Unterziele unvollstaendig oder zu vage.
+- "richtig" wenn Kernpunkte + alle Unterziele abgedeckt sind.
 
-KEINE Musterloesung, KEINE Erklaerung, KEIN Text vor/nach dem JSON. Stoppe nach dem schliessenden }.` },
+Inhalt "kurz": richtig=Bestaetigung; teilweise=was fehlt; falsch=warum falsch.
+KEIN Text vor/nach dem JSON. Stoppe nach }.` },
     { role: "user", content:
 `LERNZIEL: ${lz.titel}
 UNTERZIELE: ${lz.unterziele.join(" / ")}
-SCHLÜSSELBEGRIFFE: ${lz.stichworte.join(", ")}
+BEREITS GENANNT vom Schueler (NICHT als "fehlt" listen!): ${genannt.length ? genannt.join(", ") : "—"}
+NOCH OFFEN (nur hieraus darf "fehlt" befuellt werden): ${offen.length ? offen.join(", ") : "—"}
 
 FRAGE: ${currentQuestion.text}
 
-SCHÜLER-ANTWORT: ${ans}
+SCHUELER-ANTWORT: ${ans}
 
 Bewerte KURZ. Nur JSON.` }
   ];
@@ -1679,6 +1686,9 @@ Bewerte KURZ. Nur JSON.` }
     // Fallback: JSON kaputt/abgeschnitten – versuche bewertung + kurz aus dem Roh-Text zu retten.
     if (!data || !data.bewertung) data = salvageEvaluation(raw);
     if (!data || !data.bewertung) throw new Error("Antwort des Modells konnte nicht interpretiert werden.");
+    // Korrekturen: a) "fehlt" auf tatsaechlich offene Stichworte filtern;
+    // b) Bewertungs-Floor: bei mehreren genannten Begriffen kein "falsch".
+    data = sanitizeEvaluation(data, genannt, offen);
     renderFeedback(data);
     const kind = data.bewertung === "richtig" ? "good" : data.bewertung === "teilweise" ? "partial" : "bad";
     recordResult(lz.nr, kind);
@@ -1691,6 +1701,49 @@ Bewerte KURZ. Nur JSON.` }
   } finally {
     setBusy(false);
   }
+}
+
+// Klassifiziert Schluesselbegriffe in "genannt" (taucht in der Antwort auf)
+// vs "offen". Vergleich erfolgt normalisiert (lowercase, Umlaute reduziert,
+// Wortstamm-tolerant via Prefix-Match), damit "Zinsen" zu "Zins" matcht.
+function matchStichworte(antwort, stichworte) {
+  const norm = s => String(s).toLowerCase()
+    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]+/g, " ").trim();
+  const ansN = " " + norm(antwort) + " ";
+  const genannt = [], offen = [];
+  for (const sw of stichworte || []) {
+    const swN = norm(sw);
+    if (!swN) continue;
+    // Match wenn Stichwort als Praefix eines Wortes in der Antwort vorkommt
+    // (z.B. "zins" matcht "zinsen", "zinssatz", "leitzins" als Teilstring).
+    // Stamm = erste 4-5 Zeichen; faengt Wortvarianten wie "spar/sparen/gespart" ab.
+    const stemLen = Math.min(swN.length, swN.length <= 4 ? swN.length : (swN.length <= 6 ? 4 : 5));
+    const stem = swN.slice(0, stemLen);
+    const found = ansN.includes(" " + swN) || ansN.includes(stem);
+    (found ? genannt : offen).push(sw);
+  }
+  return { genannt, offen };
+}
+
+// Bereinigt das KI-Resultat:
+// - "fehlt" wird auf die Schnittmenge mit "offen" reduziert (Modell darf
+//   keine bereits genannten Begriffe als fehlend behaupten).
+// - Wenn der Schueler >=2 Schluesselbegriffe genannt hat und das Modell
+//   "falsch" sagt, wird auf "teilweise" hochgestuft.
+function sanitizeEvaluation(data, genannt, offen) {
+  const offenSet = new Set(offen.map(s => s.toLowerCase()));
+  const cleaned = { ...data };
+  if (Array.isArray(cleaned.fehlt)) {
+    cleaned.fehlt = cleaned.fehlt.filter(p => offenSet.has(String(p).toLowerCase()));
+  }
+  if (cleaned.bewertung === "falsch" && genannt.length >= 2) {
+    cleaned.bewertung = "teilweise";
+    if (!cleaned.kurz || cleaned.kurz.length < 5) {
+      cleaned.kurz = "Richtung stimmt, aber die Wirkungskette und einige Fachbegriffe fehlen noch.";
+    }
+  }
+  return cleaned;
 }
 
 // Wenn parseJsonLoose scheitert (z.B. abgeschnittenes JSON wegen Token-Limit),
@@ -2197,6 +2250,7 @@ async function submitQuizAnswer() {
   $("quizSubmitBtn").disabled = true;
   $("quizFeedbackContainer").innerHTML = `<div class="empty-hint loading-line"><span class="spinner"></span>KI prueft Ihre Antwort… <span id="quizEvalProgress" style="color:var(--text-soft);font-size:12px;"></span></div>`;
 
+  const { genannt, offen } = matchStichworte(ans, lz.stichworte);
   const messages = [
     { role: "system", content:
 `Schweizer Wirtschaftslehrerin. Bewerte ULTRAKURZ. Deutsch, kein "ß".
@@ -2206,14 +2260,19 @@ Antworte AUSSCHLIESSLICH mit diesem JSON, sonst NICHTS:
 
 HARTE LIMITS:
 - "kurz": EIN Satz, MAX 20 Woerter.
-- "fehlt": MAX 3 Stichworte, oder [] wenn richtig.
-- Gesamtes JSON unter 200 Zeichen anpeilen.
+- "fehlt": MAX 3 Stichworte. NUR aus "NOCH OFFEN" waehlen, NIE aus "BEREITS GENANNT".
 
-Inhalt: richtig=1 Satz Bestaetigung; teilweise=was fehlt; falsch=warum falsch. KEINE Musterloesung. Stoppe nach }.` },
+Regeln:
+- "falsch" NUR wenn inhaltlich klar verkehrt oder am Thema vorbei. NIE wenn mehrere Schluesselbegriffe genannt + Richtung passt.
+- "teilweise": Richtung stimmt, aber Wirkungskette unvollstaendig.
+- "richtig": Kernpunkte + Unterziele abgedeckt.
+
+Stoppe nach }.` },
     { role: "user", content:
 `LERNZIEL: ${lz.titel}
 UNTERZIELE: ${lz.unterziele.join(" / ")}
-SCHLUESSELBEGRIFFE: ${lz.stichworte.join(", ")}
+BEREITS GENANNT (nicht als "fehlt" listen): ${genannt.length ? genannt.join(", ") : "—"}
+NOCH OFFEN (nur hieraus "fehlt" befuellen): ${offen.length ? offen.join(", ") : "—"}
 
 FRAGE: ${lz._frage}
 
@@ -2238,6 +2297,7 @@ Bewerte KURZ. Nur JSON.` }
       console.error("[submitQuizAnswer] Parse fail. finish_reason:", chat.lastFinishReason, "\nraw:", raw);
       throw new Error("Antwort des Modells konnte nicht interpretiert werden.");
     }
+    data = sanitizeEvaluation(data, genannt, offen);
     const kind = data.bewertung === "richtig" ? "good" : data.bewertung === "teilweise" ? "partial" : "bad";
     const kurzText = data.kurz || data.begruendung || "";
     const fehltArr = Array.isArray(data.fehlt) ? data.fehlt
