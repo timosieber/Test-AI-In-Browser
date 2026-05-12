@@ -1637,17 +1637,22 @@ async function submitAnswer() {
 
   const messages = [
     { role: "system", content:
-`Du bist eine strenge, faire Schweizer Wirtschaftslehrerin. Bewerte kurz und konkret. Sprache: Deutsch, kein "ß".
+`Schweizer Wirtschaftslehrerin. Bewerte ULTRAKURZ. Deutsch, kein "ß".
 
-Antworte NUR mit gültigem JSON, KURZ, nichts davor/danach:
-{"bewertung":"richtig"|"teilweise"|"falsch","kurz":"1 Satz: was stimmt oder was fehlt","fehlt":["Stichwort1","Stichwort2"]}
+Antworte AUSSCHLIESSLICH mit diesem JSON, sonst NICHTS:
+{"bewertung":"richtig"|"teilweise"|"falsch","kurz":"...","fehlt":["..."]}
 
-Regeln:
-- richtig: Kernpunkte + Fachbegriffe (oder präzise Umschreibung) vorhanden. "kurz" = 1 Satz Bestätigung. "fehlt" = [].
-- teilweise: Richtung stimmt, aber Fachbegriffe/Wirkungskette/Unterziele fehlen. "kurz" nennt knapp WAS fehlt.
-- falsch: Klar falsche Aussage. "kurz" sagt knapp WARUM falsch.
+HARTE LIMITS:
+- "kurz": EIN Satz, MAX 20 Woerter. Kein Smalltalk, keine Wiederholung der Frage.
+- "fehlt": MAX 3 Stichworte (je 1-3 Woerter), oder [] wenn richtig.
+- Gesamtes JSON unter 200 Zeichen anpeilen.
 
-"kurz" MAX 1 Satz, ca. 15-25 Wörter. "fehlt" MAX 3 Stichworte. KEINE Musterlösung, keine langen Erklärungen.` },
+Inhalt von "kurz":
+- richtig: 1 Satz Bestaetigung.
+- teilweise: 1 Satz, was fehlt.
+- falsch: 1 Satz, warum falsch.
+
+KEINE Musterloesung, KEINE Erklaerung, KEIN Text vor/nach dem JSON. Stoppe nach dem schliessenden }.` },
     { role: "user", content:
 `LERNZIEL: ${lz.titel}
 UNTERZIELE: ${lz.unterziele.join(" / ")}
@@ -1664,7 +1669,7 @@ Bewerte KURZ. Nur JSON.` }
   try {
     raw = await chat(messages, {
       temperature: 0.2,
-      max_tokens: 220,
+      max_tokens: 320,
       onChunk: (buf) => {
         const el = $("evalProgress");
         if (el) el.textContent = `(${buf.length} Zeichen)`;
@@ -1695,15 +1700,31 @@ function salvageEvaluation(raw) {
   if (typeof raw !== "string" || !raw) return null;
   const bewMatch = raw.match(/"bewertung"\s*:\s*"(richtig|teilweise|falsch)"/i);
   if (!bewMatch) return null;
-  const kurzMatch = raw.match(/"(?:kurz|begruendung)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+  // Erst sauber geschlossener String, dann Fallback: nimm alles bis Komma/Newline/Ende.
+  // Phi-4-mini erzeugt oft ueberlange "kurz"-Strings ohne Schluss-Quote (Token-Limit).
+  let kurz = "";
+  const closed = raw.match(/"(?:kurz|begruendung)"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  if (closed) {
+    kurz = closed[1];
+  } else {
+    const openOnly = raw.match(/"(?:kurz|begruendung)"\s*:\s*"((?:[^"\\]|\\.)*)$/);
+    if (openOnly) kurz = openOnly[1];
+  }
+  kurz = kurz.replace(/\\n/g, " ").replace(/\\"/g, '"').replace(/\s+/g, " ").trim();
+  // Nur die ersten 2 Saetze behalten — Modelle schreiben hier gerne Aufsaetze.
+  if (kurz) {
+    const m = kurz.match(/^(.+?[.!?])\s+(.+?[.!?])/);
+    if (m) kurz = m[0];
+    else if (kurz.length > 220) kurz = kurz.slice(0, 220).replace(/\s+\S*$/, "") + "…";
+  }
   const fehltMatch = raw.match(/"(?:fehlt|fehlende_punkte)"\s*:\s*\[([^\]]*)/);
   let fehlt = [];
   if (fehltMatch) {
-    fehlt = [...fehltMatch[1].matchAll(/"([^"\\]*(?:\\.[^"\\]*)*)"/g)].map(m => m[1]);
+    fehlt = [...fehltMatch[1].matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(m => m[1]);
   }
   return {
     bewertung: bewMatch[1].toLowerCase(),
-    kurz: kurzMatch ? kurzMatch[1] : "Bewertung konnte nur teilweise rekonstruiert werden.",
+    kurz: kurz || "Bewertung konnte nur teilweise rekonstruiert werden.",
     fehlt,
   };
 }
@@ -2178,17 +2199,17 @@ async function submitQuizAnswer() {
 
   const messages = [
     { role: "system", content:
-`Schweizer Wirtschaftslehrerin. Bewerte KURZ. Deutsch, kein "ß".
+`Schweizer Wirtschaftslehrerin. Bewerte ULTRAKURZ. Deutsch, kein "ß".
 
-Nur JSON, nichts davor/danach:
-{"bewertung":"richtig"|"teilweise"|"falsch","kurz":"1 Satz: was stimmt oder was fehlt","fehlt":["Stichwort1","Stichwort2"]}
+Antworte AUSSCHLIESSLICH mit diesem JSON, sonst NICHTS:
+{"bewertung":"richtig"|"teilweise"|"falsch","kurz":"...","fehlt":["..."]}
 
-Regeln:
-- richtig: Kernpunkte + Fachbegriffe vorhanden. "fehlt"=[].
-- teilweise: Richtung stimmt, aber Fachbegriffe/Wirkungskette fehlen. "kurz" nennt knapp WAS fehlt.
-- falsch: Klar falsch. "kurz" sagt knapp WARUM.
+HARTE LIMITS:
+- "kurz": EIN Satz, MAX 20 Woerter.
+- "fehlt": MAX 3 Stichworte, oder [] wenn richtig.
+- Gesamtes JSON unter 200 Zeichen anpeilen.
 
-"kurz" MAX 1 Satz (15-25 Woerter). "fehlt" MAX 3 Stichworte. KEINE Musterloesung.` },
+Inhalt: richtig=1 Satz Bestaetigung; teilweise=was fehlt; falsch=warum falsch. KEINE Musterloesung. Stoppe nach }.` },
     { role: "user", content:
 `LERNZIEL: ${lz.titel}
 UNTERZIELE: ${lz.unterziele.join(" / ")}
@@ -2205,7 +2226,7 @@ Bewerte KURZ. Nur JSON.` }
   try {
     raw = await chat(messages, {
       temperature: 0.2,
-      max_tokens: 220,
+      max_tokens: 320,
       onChunk: (buf) => {
         const el = $("quizEvalProgress");
         if (el) el.textContent = `(${buf.length} Zeichen)`;
